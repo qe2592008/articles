@@ -5,7 +5,7 @@
     ConcurrentHashMap通过对桶位数组值加锁的方式来保证并发下的操作安全性。注意这里不是对桶位加锁，而是对桶位上的元素进行加锁。
 ## 基础
 ### Java内存模型
-具体查看[Java基础系列-Java内存模型]()
+具体查看[Java基础系列-Java内存模型](https://github.com/qe2592008/articles/blob/develop/Notes/Java%E5%9F%BA%E7%A1%80%E7%B3%BB%E5%88%97/Java%E5%9F%BA%E7%A1%80%E7%B3%BB%E5%88%97-Java%E5%86%85%E5%AD%98%E6%A8%A1%E5%9E%8B.md)
 ### volatile
 volatile可以保证内存可见性和有序性，无法保证原子性，原子性需要依靠加锁来保证。
 - 可加性：被volatile修饰的变量在被修改之后，会被立即更新到主内存中，读取volatile修饰的变量时需要直接从主内存读取，保证修改的值可见，保证线程安全。
@@ -14,13 +14,13 @@ volatile可以保证内存可见性和有序性，无法保证原子性，原子
 具体可查看[java基础系列--volatile关键字](https://www.cnblogs.com/V1haoge/p/7833881.html)
 ### CAS操作
 CAS操作是直接调用计算机指令来完成操作，属于原子操作。
-具体查看[Java基础系列-CAS操作]()
+具体查看[Java基础系列-CAS操作](https://github.com/qe2592008/articles/blob/develop/Notes/Java%E5%9F%BA%E7%A1%80%E7%B3%BB%E5%88%97/Java%E5%9F%BA%E7%A1%80%E7%B3%BB%E5%88%97-CAS%E6%93%8D%E4%BD%9C.md)
 ### 红黑树
 红黑树是一种特制化的二叉查找树。
-具体可查看[算法基础系列-红黑树]()
+具体可查看[算法基础系列-红黑树](https://github.com/qe2592008/articles/blob/develop/Notes/%E7%AE%97%E6%B3%95%E5%9F%BA%E7%A1%80%E7%B3%BB%E5%88%97/%E7%AE%97%E6%B3%95%E5%9F%BA%E7%A1%80%E7%B3%BB%E5%88%97-%E7%BA%A2%E9%BB%91%E6%A0%91.md)
 ### 二进制操作
 Java源码中涉及到了大量的二进制操作，总是让人云里雾里。
-具体查看[Java基础系列-二进制操作]()
+具体查看[Java基础系列-二进制操作](https://github.com/qe2592008/articles/blob/develop/Notes/Java%E5%9F%BA%E7%A1%80%E7%B3%BB%E5%88%97/Java%E5%9F%BA%E7%A1%80%E7%B3%BB%E5%88%97-%E4%BA%8C%E8%BF%9B%E5%88%B6%E6%93%8D%E4%BD%9C.md)
 ## 常量变量解析
 ```java
 public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
