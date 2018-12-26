@@ -26,24 +26,38 @@ Java源码中涉及到了大量的二进制操作，总是让人云里雾里。
 public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     implements ConcurrentMap<K,V>, Serializable {
     //...
-    private static final int MAXIMUM_CAPACITY = 1 << 30;// 桶数组的最大容量(2的30次方)
-    private static final int DEFAULT_CAPACITY = 16;// 桶数组的默认容量为16(2的4次方)
+    // 桶数组的最大容量(2的30次方)
+    private static final int MAXIMUM_CAPACITY = 1 << 30;
+    // 桶数组的默认容量为16(2的4次方)
+    private static final int DEFAULT_CAPACITY = 16;
     static final int MAX_ARRAY_SIZE = Integer.MAX_VALUE - 8;// 
-    private static final int DEFAULT_CONCURRENCY_LEVEL = 16;// 默认的并发等级，这个值一般等于桶数组容量，这个并发等级，其实就是可以同时支持的最大并发量
-    private static final float LOAD_FACTOR = 0.75f;// 负载因子，一般不改动
-    static final int TREEIFY_THRESHOLD = 8;// 树形化阈值，链表元素达到8个就尝试执行树形化
-    static final int UNTREEIFY_THRESHOLD = 6;// 树退化阈值，树在扩容时分拆后树容量达到6时执行退化操作，转化为单向链表
-    static final int MIN_TREEIFY_CAPACITY = 64;// 树形化容量阈值，只有在桶数组容量达到64之后才能执行树形化操作，否则会执行扩容
-    private static final int MIN_TRANSFER_STRIDE = 16;// 数据迁移的最短步长，也就是分配给每个线程的迁移的区间最小值为16
-    private static int RESIZE_STAMP_BITS = 16;// 用于生成扩容戳记sizeCtr的一个基础量
-    private static final int MAX_RESIZERS = (1 << (32 - RESIZE_STAMP_BITS)) - 1;// 辅助扩容的线程的最大数量。1111111111111111  共16个1，整数是65535
+    // 默认的并发等级，这个值一般等于桶数组容量，这个并发等级，其实就是可以同时支持的最大并发量
+    private static final int DEFAULT_CONCURRENCY_LEVEL = 16;
+    // 负载因子，一般不改动
+    private static final float LOAD_FACTOR = 0.75f;
+    // 树形化阈值，链表元素达到8个就尝试执行树形化
+    static final int TREEIFY_THRESHOLD = 8;
+    // 树退化阈值，树在扩容时分拆后树容量达到6时执行退化操作，转化为单向链表
+    static final int UNTREEIFY_THRESHOLD = 6;
+    // 树形化容量阈值，只有在桶数组容量达到64之后才能执行树形化操作，否则会执行扩容
+    static final int MIN_TREEIFY_CAPACITY = 64;
+    // 数据迁移的最短步长，也就是分配给每个线程的迁移的区间最小值为16
+    private static final int MIN_TRANSFER_STRIDE = 16;
+    // 用于生成扩容戳记sizeCtr的一个基础量
+    private static int RESIZE_STAMP_BITS = 16;
+    // 辅助扩容的线程的最大数量。1111111111111111  共16个1，整数是65535
+    private static final int MAX_RESIZERS = (1 << (32 - RESIZE_STAMP_BITS)) - 1;
     private static final int RESIZE_STAMP_SHIFT = 32 - RESIZE_STAMP_BITS;// 
-    
-    static final int MOVED     = -1; // 表示正在进行元素迁移
-    static final int TREEBIN   = -2; // 表示树形化已完成
+    // 表示正在进行元素迁移
+    static final int MOVED     = -1; 
+    // 表示树形化已完成
+    static final int TREEBIN   = -2; 
     static final int RESERVED  = -3; // hash for transient reservations
-    static final int HASH_BITS = 0x7fffffff; // 正常节点的hash值的可用位(共32位，除首位外均可用)
-    static final int NCPU = Runtime.getRuntime().availableProcessors();// 当前服务器的CPU核心数
+    // 正常节点的hash值的可用位(共32位，除首位外均可用)
+    static final int HASH_BITS = 0x7fffffff; 
+    // 当前服务器的CPU核心数
+    static final int NCPU = Runtime.getRuntime().availableProcessors();
+    // 这一部分主要是为了向前兼容
     private static final ObjectStreamField[] serialPersistentFields = {
         new ObjectStreamField("segments", Segment[].class),
         new ObjectStreamField("segmentMask", Integer.TYPE),
@@ -54,7 +68,8 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     transient volatile Node<K,V>[] table;// 桶数组
     private transient volatile Node<K,V>[] nextTable;// 扩容时的新桶数组
     private transient volatile long baseCount;// 
-    private transient volatile int sizeCtl;// 容量控制器，用途很多，一般用于在改变桶数组容量时作为CAS锁。
+    // 容量控制器，用途很多，一般用于在改变桶数组容量时作为CAS锁。
+    private transient volatile int sizeCtl;
     private transient volatile int transferIndex;// 
     private transient volatile int cellsBusy;// 
     private transient volatile CounterCell[] counterCells;// 
@@ -64,6 +79,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     private transient EntrySetView<K,V> entrySet;// 键值对集合缓存
     
     // 以下几个字段都是final的，一旦赋值就不变了，其赋值就在下面的静态块中
+    // 这几个字段保存的是对应字段在内存中的偏移量，这个偏移量主要用于CAS操作的时候
     private static final sun.misc.Unsafe U;
     private static final long SIZECTL;
     private static final long TRANSFERINDEX;
@@ -84,17 +100,24 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     //...
     static {
         try {
+        	// 首先获取Unsafe实例，也只有源码可以以这种方式获取实例，并没有对用户开放
+        	// 很明显并不推荐用户自行使用，但是使用反射还是可以获取到Unsafe实例的
             U = sun.misc.Unsafe.getUnsafe();
             Class<?> k = ConcurrentHashMap.class;
-            SIZECTL = U.objectFieldOffset// 获取字段偏移量
+            // 获取ConcurrentHashMap实例的字段sizeCtl的内存偏移量
+            SIZECTL = U.objectFieldOffset
                 (k.getDeclaredField("sizeCtl"));
+            // 获取ConcurrentHashMap实例的字段transferIndex的内存偏移量
             TRANSFERINDEX = U.objectFieldOffset
                 (k.getDeclaredField("transferIndex"));
+            // 获取ConcurrentHashMap实例的字段baseCount的内存偏移量
             BASECOUNT = U.objectFieldOffset
                 (k.getDeclaredField("baseCount"));
+            // 获取ConcurrentHashMap实例的字段cellsBusy的内存偏移量
             CELLSBUSY = U.objectFieldOffset
                 (k.getDeclaredField("cellsBusy"));
             Class<?> ck = CounterCell.class;
+            // 获取CounterCell的实例字段value的内存偏移量
             CELLVALUE = U.objectFieldOffset
                 (ck.getDeclaredField("value"));
             Class<?> ak = Node[].class;
@@ -291,13 +314,14 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V> implements Concurre
                    (n = tab.length) < MAXIMUM_CAPACITY) {
                 int rs = resizeStamp(n);
                 // sc是sizeCtl的值，如果其小于0，那么桶数组要么正在初始化，要么正在扩容，
-                // 在上面排除了table为null的情况，那么这里只能是在进行扩容，然后，当前线程开始参与扩容
+                // 在上面排除了table为null的情况，那么这里只能是在进行扩容，然后当前线程开始参与扩容
                 if (sc < 0) {
                     // 如果所有区段都已经分配完毕，则不再对新的线程进行扩容分配
                     // 条件1：(sc >>> RESIZE_STAMP_SHIFT) != rs ==> 
-                    // sizeCtr在扩容初始值是(rs << RESIZE_STAMP_SHIFT) + 2)，而在分配多线程进行扩容的时候，
-                    // 又会对sizeCtr进行操作，每多一个线程参与扩容，sizeCtr就是加1，每有一个线程完成扩容任务
-                    // 退出扩容队列时sizeCtr又会减1，当所有的线程都完成扩容之后，sizeCtr的值又恢复成初始值了
+                    // sizeCtr在扩容初始值是(rs << RESIZE_STAMP_SHIFT) + 2)，
+                    // 而在分配多线程进行扩容的时候，又会对sizeCtr进行操作，每多一个线程参与扩容，
+                    // sizeCtr就是加1，每有一个线程完成扩容任务退出扩容队列时sizeCtr又会减1，
+                    // 当所有的线程都完成扩容之后，sizeCtr的值又恢复成初始值了
                     if ((sc >>> RESIZE_STAMP_SHIFT) != rs || sc == rs + 1 ||
                         sc == rs + MAX_RESIZERS || (nt = nextTable) == null ||
                         transferIndex <= 0)
@@ -364,7 +388,8 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
                         @SuppressWarnings("unchecked")
                         Node<K,V>[] nt = (Node<K,V>[])new Node<?,?>[n];
                         table = tab = nt;
-                        sc = n - (n >>> 2);// 最后将sc设置为n的四分之三值即0.75倍的容量，这相当于扩容阈值
+                        // 最后将sc设置为n的四分之三值即0.75倍的容量，这相当于扩容阈值
+                        sc = n - (n >>> 2);
                     }
                 } finally {
                     sizeCtl = sc;
@@ -581,8 +606,8 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
                             // 新桶数组的对应桶位，然后将原桶位置为fwd节点表示迁移结束。
                             // 分拆原理：n为旧桶容量，我们知道所有的桶容量就是2的次幂，二进制表示
                             // 的话就是1个1，N个0的二进制值，将fh(首结点的hash值)与n进行与操作，
-                            // 结果只会有两种，一种就是0，一种就是n，分别对应新桶数组的原桶位（新桶低位）
-                            // 和原桶位+旧桶容量位（新桶高位），分别用ln和hn表示
+                            // 结果只会有两种，一种就是0，一种就是n，分别对应新桶数组的原桶位
+                            // （新桶低位）和原桶位+旧桶容量位（新桶高位），分别用ln和hn表示
                             int runBit = fh & n;// n为旧桶容量
                             Node<K,V> lastRun = f;
                             // 下面这个循环的目的是找出链表最后一个“与结果”变化的链表节点lastRun，
@@ -617,7 +642,8 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
                                 else
                                     hn = new Node<K,V>(ph, pk, pv, hn);
                             }
-                            // 最后将组装好的小链表定位到新数组的指定位置，再将原数组的指定位置置为fwd表示迁移完毕。
+                            // 最后将组装好的小链表定位到新数组的指定位置，
+                            // 再将原数组的指定位置置为fwd表示迁移完毕。
                             setTabAt(nextTab, i, ln);
                             setTabAt(nextTab, i + n, hn);
                             setTabAt(tab, i, fwd);
@@ -656,12 +682,14 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
                                     ++hc;// 高位容量
                                 }
                             }
-                            // 将准备好的两个双向链表进行树化，当然如果该位节点数量为6个及以下，则结构会退化为单向链表
+                            // 将准备好的两个双向链表进行树化，当然如果该位节点数量为6个及以下，
+                            // 则结构会退化为单向链表
                             ln = (lc <= UNTREEIFY_THRESHOLD) ? untreeify(lo) :
                                 (hc != 0) ? new TreeBin<K,V>(lo) : t;
                             hn = (hc <= UNTREEIFY_THRESHOLD) ? untreeify(hi) :
                                 (lc != 0) ? new TreeBin<K,V>(hi) : t;
-                            // 最后将组装好的高位与低位的结构置于新桶数组的指定位置，再将旧桶数组指定位置置为fwd表示迁移结束
+                            // 最后将组装好的高位与低位的结构置于新桶数组的指定位置，
+                            // 再将旧桶数组指定位置置为fwd表示迁移结束
                             setTabAt(nextTab, i, ln);
                             setTabAt(nextTab, i + n, hn);
                             setTabAt(tab, i, fwd);
@@ -672,8 +700,8 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
             }
         }
     }
-    // 辅助迁移操作，当一个线程准备执行添加元素的操作时发现正在扩容，那么它就会停止添加操作，并且去辅助扩容操作。
-    // 其实所谓的辅助扩容就是为当前线程分配一段桶位区间进行元素迁移操作
+    // 辅助迁移操作，当一个线程准备执行添加元素的操作时发现正在扩容，那么它就会停止添加操作，
+    // 并且去辅助扩容操作。其实所谓的辅助扩容就是为当前线程分配一段桶位区间进行元素迁移操作
     final Node<K,V>[] helpTransfer(Node<K,V>[] tab, Node<K,V> f) {
         Node<K,V>[] nextTab; int sc;
         // 
@@ -685,7 +713,8 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
                 if ((sc >>> RESIZE_STAMP_SHIFT) != rs || sc == rs + 1 ||
                     sc == rs + MAX_RESIZERS || transferIndex <= 0)
                     break;
-                // sizeCtl值原子加1，表示执行扩容的线程由多了一个，那么sizeCtl在线程扩容期间表示的就是执行扩容的线程的数量
+                // sizeCtl值原子加1，表示执行扩容的线程由多了一个，
+                // 那么sizeCtl在线程扩容期间表示的就是执行扩容的线程的数量
                 if (U.compareAndSwapInt(this, SIZECTL, sc, sc + 1)) {
                     transfer(tab, nextTab);
                     break;
@@ -704,7 +733,8 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
 ```
 ### 获取元素操作
 #### 功能描述
-    获取指定key的值，需要先对key进行hash,找到对应的桶位
+    获取指定key的值，需要先对key进行hash,找到对应的桶位,然后在针对桶位的实际情况采用对应的措施：
+    桶位元素即为目标元素；红黑树结构，单向链表结构三种情况
 #### 源码解析
 ```java
 public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
@@ -760,5 +790,14 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
 ## 总结
 ### sizeCtr
 
+- 0：default，默认值，在使用无参构造器构造实例时
+
+- -1：初始化桶数组
+- （(rs << RESIZE_STAMP_SHIFT）+2) +N：数组扩容，代表线程数量，但有个基数(rs << RESIZE_STAMP_SHIFT）+2，在此基数上进行增减，每有一个线程参加扩容，该值+1，否则减1，扩容结束会恢复基数值。
+- 0.75*table.length：正常状态，代表扩容阈值
+
 ### hash
 
+参考：
+
+​	[Java基础系列-HashMap 1.8](https://github.com/qe2592008/articles/blob/develop/Notes/Java%E5%9F%BA%E7%A1%80%E7%B3%BB%E5%88%97/Java%E5%9F%BA%E7%A1%80%E7%B3%BB%E5%88%97-HashMap.md)
