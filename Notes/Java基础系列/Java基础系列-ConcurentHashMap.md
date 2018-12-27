@@ -784,7 +784,13 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
 #### 树形化操作
 ##### 功能描述
 
+ConcurrentHashMap的红黑树操作与HashMap的基本一致，底层涉及到的都是纯粹的红黑树数据结构的操作，那是固定的。
+
+参考[Java基础系列-HashMap 1.8](https://www.cnblogs.com/V1haoge/p/10022092.html)
+
 ##### 源码解析
+
+（略）
 
 
 ## 总结
@@ -798,6 +804,11 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
 
 ### hash
 
+- -1：（MOVED）表示正在扩容，且当前桶位的元素已迁移完毕。
+- -2：（TREEBIN）表示红黑树
+- -3：（RESERVED）？？
+
 参考：
 
-​	[Java基础系列-HashMap 1.8](https://github.com/qe2592008/articles/blob/develop/Notes/Java%E5%9F%BA%E7%A1%80%E7%B3%BB%E5%88%97/Java%E5%9F%BA%E7%A1%80%E7%B3%BB%E5%88%97-HashMap.md)
+- [Java基础系列-HashMap 1.8](https://www.cnblogs.com/V1haoge/p/10022092.html)
+
