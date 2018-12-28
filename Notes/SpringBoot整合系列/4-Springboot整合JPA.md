@@ -58,12 +58,13 @@ public class User {
 ```
 ### 第四步：添加持久层
 ```java
-@Repository  
-public interface UserRepository extends JpaRepository {  
+public interface UserRepository extends JpaRepository<User, Serializable> {  
 }
 ```
 > 注意：
 >  继承自JpaRepository的持久层可以直接使用其定义好的CRUD操作，其实只有增删查操作，关于修改的操作还是需要自定义的。
+>
+> 继承了JpaRepository之后，就不再需要添加@Repository注解了
 ### 第五步：持久层的使用
 ```java
 @Service  
@@ -138,8 +139,154 @@ List users = repository.findAll(Example.of(user, matcher));
     以上逻辑一般位于service之中。其中user模型中保存着查询的条件值，null的字段不是条件，只有设置了值的字段才是条件。ExampleMatcher是用来自定义字段匹配模式的。
 ### 复杂查询
     在Spring Data JPA中我们可以使用Specification来构建复杂多变的动态查询条件，甚至联表查询，几乎可以以编码方式实现sql条件编写。
-    
-    
+
+#### 第一步：添加继承接口
+
+```java
+// 继承JpaSpecificationExecutor之后可以使用复杂的查询
+public interface UsersRepository extends JpaSpecificationExecutor<User>, JpaRepository<User, Serializable> {
+}
+```
+
+#### 第二步：使用Specification
+
+```java
+// 复杂查询,使用Predicate
+public ResponseEntity<Page<User>> getUserPage(final int pageId, final int pageSize){
+    Pageable pageable = new PageRequest(pageId, pageSize);
+    return ResponseEntity.ok(usersRepository.findAll((root, query, cb) -> {
+        Predicate p1 = cb.equal(root.get("useSex"), "1");
+        Predicate p2 = cb.or(
+            cb.equal(root.get("useState"),"1"),
+            cb.equal(root.get("useState"),"2"));
+        query.where(p1, p2).orderBy(new OrderImpl(root.get("createTime")));
+        return null;
+    }, pageable));
+}
+```
+
+> 用法解析：
+>
+> ​	首先看Specification接口，在其中只有一个抽象方法，所以它就是一个函数式接口，另外还定义了两个静态方法，两个默认方法：我们来看看源码：
+>
+> ```java
+> public interface Specification<T> extends Serializable {
+> 
+> 	long serialVersionUID = 1L;
+> 	// 这个是非的意思
+> 	static <T> Specification<T> not(Specification<T> spec) {
+> 		return Specifications.negated(spec);
+> 	}
+> 	// 这个是
+> 	static <T> Specification<T> where(Specification<T> spec) {
+> 		return Specifications.where(spec);
+> 	}
+> 	// 这个是与的意思
+> 	default Specification<T> and(Specification<T> other) {
+> 		return Specifications.composed(this, other, AND);
+> 	}
+> 	// 这个是或的意思
+> 	default Specification<T> or(Specification<T> other) {
+> 		return Specifications.composed(this, other, OR);
+> 	}
+> 	// 创建where子句 重点，上面的Lambda表达式用的就是这个方法
+>     // Root是From子句的根类型
+>     // CriteriaQuery封装高级查询功能，包括：select(指定返回的字段)
+> 	@Nullable
+> 	Predicate toPredicate(Root<T> root, CriteriaQuery<?> query, CriteriaBuilder criteriaBuilder);
+> }
+> ```
+>
+> > Hibenate的Criteria查询解析
+> >
+> > - EntityManager：实体管理器，这是持久化的开端，通过它的getCriteriaBuilder方法可以得到条件构造器CriteriaBuilder，而其本身的实例是被自动创建到IOC容器的，可以直接注入使用。
+> >
+> > - CriteriaBuilder：条件构造器，用于构造查询条件，可以拥有多个，通过它的createQuery方法可以获得一个CriteriaQuery实例
+> >
+> > - CriteriaQuery：高级查询功能，涉及：
+> >
+> >   - select：用于指定返回对象，代表SQL中的select子句
+> >   - multiselect：用于指定具体要返回的多个字段，代表SQL中的select子句
+> >   - where：用于聚合所有的查询条件谓语，代表SQL中的where子句
+> >   - groupBy：用于分组，代表SQL中的group By子句
+> >   - having：代表SQL中的having子句
+> >   - orderBy：代表SQL中的order by子句
+> >   - distinct：代表distinct关键字（去重）
+> >
+> >   可以通过它的from方法得到Root根对象
+> >
+> > - Root：代表的是From子句，这里一般代表查询的根对象
+> >
+> > ```java
+> > // EntityManager是一切的开始，直接注入即可使用
+> > @Autowired
+> > private EntityManager entityManager;
+> > 
+> > public ResponseEntity<Page<User>> getUserList(){
+> >     // CriteriaBuilder是条件构造器
+> >     CriteriaBuilder criteriaBuilder = entityManager.getCriteriaBuilder();
+> >     // 创建查询用户分页数据的查询实例
+> >     CriteriaQuery<User> criteriaQuery = criteriaBuilder.createQuery(User.class);
+> >     // 创建查询用户数据总量的查询实例
+> >     CriteriaQuery<Tuple> criteriaCountQuery = criteriaBuilder.createQuery(Tuple.class);
+> >     // 设置两个查询的来源，即from哪个模型对应的表
+> >     Root<User> root = criteriaQuery.from(User.class);
+> >     Root<User> countRoot = criteriaCountQuery.from(User.class);
+> >     // 使用CriteriaBuilder来构造查询条件p1和p2
+> >     Predicate p1 = criteriaBuilder.equal(root.get("useState"), UseSex.MAN);
+> >     Predicate p2 = criteriaBuilder.or(
+> >         criteriaBuilder.equal(root.get("useState"),UseState.COMMON),
+> >         criteriaBuilder.equal(root.get("useState"),UseState.CANCLE));
+> >     // 将查询条件连同其他一些需求条件一起封装到CriteriaQuery中
+> >     criteriaQuery
+> >         .where(p1,p2)// 组合条件
+> >         .distinct(true)// 去重
+> >         .select(root)// 设置查询对象
+> >         .orderBy(criteriaBuilder.asc(root.get("createTime")));// 排序
+> >     criteriaCountQuery
+> >                 .where(p1,p2)// 组合条件
+> >                 .distinct(true)// 去重
+> >                 .multiselect(criteriaBuilder
+> >                         .count(countRoot.get("useId"))// 设置查询内容，这里为count
+> >                         .alias("total"));// 为count设置别名，用于下面获取
+> >     // 创建最终的查询对象Query，它和CriteriaQuery不同之处在于，
+> >     // 前者是最终执行查询操作并处理结果的查询对象，后者是用来组装的查询功能的查询对象，
+> >     // 简单的说，这个createQuery的作用就是将之前组装好的查询对象，
+> >     // 编译成为正在的SQL字符串封装到Query中
+> >     Query query = entityManager.createQuery(criteriaQuery);
+> >     Query countQuery = entityManager.createQuery(criteriaCountQuery);
+> >     query.setMaxResults(pageSize);
+> >     query.setFirstResult(pageId * pageSize);
+> >     // 执行查询操作，并返回结果
+> >     List<User> users = query.getResultList();
+> >     List<Tuple> tuples = countQuery.getResultList();
+> >     Tuple tu = tuples.get(0);
+> >     Long count = (Long)tu.get("total");
+> >     Page<User> userPage = new PageImpl<User>(users, pageable,count);
+> >     return ResponseEntity.ok(userPage);
+> > }
+> > ```
+>
+> ​	单独使用Hibernate就是这样，但是我们使用Spring Data JPA的时候，不必如此，因为在JPA中的Specification为我们作了封装，也就是准备工作，将CriteriaBuilder，CriteriaQuery，Root这三者都准备好了，可以直接使用，而且对最后的执行查询的操作也做了封装，而我们的工作就剩下组装查询实例CriteriaQuery了。
+>
+> ​	而且Specification接口是一个函数式接口，我们可以采用Lambda来编程，非常简单，就上面的代码可以简化为：
+>
+> ```java
+> public ResponseEntity<Page<User>> getUserList(final int pageId, final int pageSize){
+>     Pageable pageable = new PageRequest(pageId, pageSize);
+>     return ResponseEntity.ok(usersRepository.findAll((root, query, cb) -> {
+>         Predicate p1 = cb.equal(root.get("useSex"), UseSex.MAN);
+>         Predicate p2 = cb.or(
+>             cb.equal(root.get("useState"),UseState.COMMON),
+>             cb.equal(root.get("useState"),UseState.FREEZE));
+>         query.where(p1, p2).orderBy(cb.asc(root.get("createTime")));
+>         return null;
+>     }, pageable));
+> }
+> ```
+>
+> ​	如何，是不是大大的简化的代码量呢？
+
 ### 分页查询
     使用Pageable来实现分页，需要传递页码和页距两个参数
 ### 排序
