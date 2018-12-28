@@ -88,6 +88,7 @@ JPA会自动将其转换为如下的SQL：
 select * from USER where use_id_no = ?
 ```
 下面简单罗列方法命名规则：
+
 | 关键字 | 例子 | sql |
 | --- | --- | --- |
 | And | findByNameAndAge | ...where x.name=?1 and x.age=?2 |
@@ -356,4 +357,6 @@ public interface UsersRepository extends JpaSpecificationExecutor<User>, JpaRepo
     使用Pageable来实现分页，需要传递页码和页距两个参数，分页查询的方式在之前的复杂查询里面已经罗列过了，这里不再赘述。
 ### 排序
     使用Sort来实现查询结果排序，可以单独作为参数，也可以组合到Pageable之中。
+整合源码：[样例代码](https://github.com/qe2592008/springboot-integration/tree/develop/src/main/java/com/dh/springbootintegration/jpa)
+
 (暂时结束)

@@ -122,5 +122,7 @@ public class User {
 ```txt
 http://localhost:8080/swagger-ui.html
 ```
+整合源码：[样例代码](https://github.com/qe2592008/springboot-integration/blob/develop/src/main/java/com/dh/springbootintegration/config/Swagger2Config.java)
+
 (结束)
 

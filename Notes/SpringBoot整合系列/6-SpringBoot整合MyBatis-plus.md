@@ -529,3 +529,4 @@ public enum IdType {
     最好不要和devTools一起使用，因为devTools中的RestartClassLoader会导致MyBatis Plus中的枚举自动映射失败，因为类加载器的不同从而在MyBatis的TypeHasnlerRegistry的TYPE_HANDLER_MAP集合中找不到对应的枚举类型（存在这个枚举类型，只不过是用AppClassLoader加载的，不同的加载器导致类型不同）
     MyBatis Plus和JPA分页有些不同，前者从1开始计页数，后者则是从0开始。
 
+整合源码：[样例代码](https://github.com/qe2592008/springboot-integration/tree/develop/src/main/java/com/dh/springbootintegration/mybatisplus)

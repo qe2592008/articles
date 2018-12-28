@@ -148,4 +148,6 @@ public class BookApi {
 
 }
 ```
+整合源码：[样例代码](https://github.com/qe2592008/springboot-integration/tree/develop/src/main/java/com/dh/springbootintegration/mybatis)
+
 (结束)

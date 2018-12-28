@@ -78,4 +78,7 @@ http://localhost:8080/h2
 [登录界面]()
 输入配置的数据库信息，点击登录，即可打开操作界面：
 [操作界面]()
+
+整合源码：[样例代码](https://github.com/qe2592008/springboot-integration/tree/develop/src/main/resources)
+
 (结束)
