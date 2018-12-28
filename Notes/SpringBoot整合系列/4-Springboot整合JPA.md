@@ -246,12 +246,114 @@ public interface UsersRepository extends JpaSpecificationExecutor<User>, JpaRepo
 >
 > ​	我们有必要讲解下如何使用Specification
 >
-> > Specification
+> > Specification解析
 > >
-> > 
+> > ​	Specification是一个函数式接口，源码如下：
+> >
+> > ```java
+> > public interface Specification<T> extends Serializable {
+> > 	long serialVersionUID = 1L;
+> > 	// 这个是非的意思
+> > 	static <T> Specification<T> not(Specification<T> spec) {
+> > 		return Specifications.negated(spec);
+> > 	}
+> > 	// 这个是
+> > 	static <T> Specification<T> where(Specification<T> spec) {
+> > 		return Specifications.where(spec);
+> > 	}
+> > 	// 这个是与的意思
+> > 	default Specification<T> and(Specification<T> other) {
+> > 		return Specifications.composed(this, other, AND);
+> > 	}
+> > 	// 这个是或的意思
+> > 	default Specification<T> or(Specification<T> other) {
+> > 		return Specifications.composed(this, other, OR);
+> > 	}
+> > 	// 创建where子句 重点，上面的Lambda表达式用的就是这个方法
+> >     // Root是From子句的根类型
+> >     // CriteriaQuery封装高级查询功能，包括：select(指定返回的字段)
+> > 	@Nullable
+> > 	Predicate toPredicate(Root<T> root, CriteriaQuery<?> query, CriteriaBuilder criteriaBuilder);
+> > }
+> > ```
+> >
+> > ​	既然Specification是函数式接口那么其唯一的抽象方法就是开放的入口，在这个入口的前后，都已经被封装好，我们只需要通过这个入口提供该方法的实现即可，这个方法中需要的是条件组装、查询对象组装等内容。
+> >
+> > ​	可以简单的看看它在哪里被调用：
+> >
+> > ```java
+> > // JPA中提供的公共方法，用于将Specification解封为Criteria
+> > private <S, U extends T> Root<U> applySpecificationToCriteria(
+> >     @Nullable Specification<U> spec, Class<U> domainClass,
+> >     CriteriaQuery<S> query) {
+> >     Assert.notNull(domainClass, "Domain class must not be null!");
+> >     Assert.notNull(query, "CriteriaQuery must not be null!");
+> >     Root<U> root = query.from(domainClass);
+> >     if (spec == null) {
+> >         return root;
+> >     }
+> >     CriteriaBuilder builder = em.getCriteriaBuilder();
+> >     Predicate predicate = spec.toPredicate(root, query, builder);
+> >     if (predicate != null) {
+> >         query.where(predicate);
+> >     }
+> >     return root;
+> > }
+> > ```
+> >
+> > ​	上面的公共方法被如下两个方法调用，第一个是getQuery方法，主要用于获取查询记录
+> >
+> > ```java
+> > protected <S extends T> TypedQuery<S> getQuery(@Nullable Specification<S> spec, Class<S> domainClass, Sort sort) {
+> >     CriteriaBuilder builder = em.getCriteriaBuilder();
+> >     CriteriaQuery<S> query = builder.createQuery(domainClass);
+> >     Root<S> root = applySpecificationToCriteria(spec, domainClass, query);
+> >     query.select(root);
+> >     if (sort.isSorted()) {
+> >         query.orderBy(toOrders(sort, root, builder));
+> >     }
+> >     return applyRepositoryMethodMetadata(em.createQuery(query));
+> > }
+> > ```
+> >
+> > ​	第二个是getCountQuery方法，主要用户获取查询记录的个数
+> >
+> > ```java
+> > protected <S extends T> TypedQuery<Long> getCountQuery(@Nullable Specification<S> spec, Class<S> domainClass) {
+> >     CriteriaBuilder builder = em.getCriteriaBuilder();
+> >     CriteriaQuery<Long> query = builder.createQuery(Long.class);
+> >     Root<S> root = applySpecificationToCriteria(spec, domainClass, query);
+> >     if (query.isDistinct()) {
+> >         query.select(builder.countDistinct(root));
+> >     } else {
+> >         query.select(builder.count(root));
+> >     }
+> >     // Remove all Orders the Specifications might have applied
+> >     query.orderBy(Collections.<Order> emptyList());
+> >     return em.createQuery(query);
+> > }
+> > ```
+> >
+> > ​	上面的方法最后被如下所示的方法所调用，而如下的方法却是有JPA封装好的持久化接口中定义的持久化方法的具体实现。这个正是我们在具体的项目中调用的方法，使用这样的方法，就免去了像之前那种纯粹由Hibernate来实现复杂查询的大部分代码了，很简单，这里做了封装，只将Specification交给我们来自定义。
+> >
+> > ```java
+> > @Override
+> > public <S extends T> long count(Example<S> example) {
+> >     return executeCountQuery(getCountQuery(new ExampleSpecification<S>(example), example.getProbeType()));
+> > }
+> > @Override
+> > public <S extends T> Optional<S> findOne(Example<S> example) {
+> >     try {
+> >         return Optional.of(
+> >             getQuery(new ExampleSpecification<S>(example), example.getProbeType(), Sort.unsorted()).getSingleResult());
+> >     } catch (NoResultException e) {
+> >         return Optional.empty();
+> >     }
+> > }
+> > ```
 
 ### 分页查询
-    使用Pageable来实现分页，需要传递页码和页距两个参数
+    使用Pageable来实现分页，需要传递页码和页距两个参数，分页查询的方式在之前的复杂查询里面已经罗列过了，这里不再赘述。
 ### 排序
     使用Sort来实现查询结果排序，可以单独作为参数，也可以组合到Pageable之中。
 (暂时结束)
