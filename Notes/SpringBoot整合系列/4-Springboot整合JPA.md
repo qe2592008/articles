@@ -150,52 +150,9 @@ public interface UsersRepository extends JpaSpecificationExecutor<User>, JpaRepo
 
 #### 第二步：使用Specification
 
-```java
-// 复杂查询,使用Predicate
-public ResponseEntity<Page<User>> getUserPage(final int pageId, final int pageSize){
-    Pageable pageable = new PageRequest(pageId, pageSize);
-    return ResponseEntity.ok(usersRepository.findAll((root, query, cb) -> {
-        Predicate p1 = cb.equal(root.get("useSex"), "1");
-        Predicate p2 = cb.or(
-            cb.equal(root.get("useState"),"1"),
-            cb.equal(root.get("useState"),"2"));
-        query.where(p1, p2).orderBy(new OrderImpl(root.get("createTime")));
-        return null;
-    }, pageable));
-}
-```
-
 > 用法解析：
 >
 > ​	首先看Specification接口，在其中只有一个抽象方法，所以它就是一个函数式接口，另外还定义了两个静态方法，两个默认方法：我们来看看源码：
->
-> ```java
-> public interface Specification<T> extends Serializable {
-> 
-> 	long serialVersionUID = 1L;
-> 	// 这个是非的意思
-> 	static <T> Specification<T> not(Specification<T> spec) {
-> 		return Specifications.negated(spec);
-> 	}
-> 	// 这个是
-> 	static <T> Specification<T> where(Specification<T> spec) {
-> 		return Specifications.where(spec);
-> 	}
-> 	// 这个是与的意思
-> 	default Specification<T> and(Specification<T> other) {
-> 		return Specifications.composed(this, other, AND);
-> 	}
-> 	// 这个是或的意思
-> 	default Specification<T> or(Specification<T> other) {
-> 		return Specifications.composed(this, other, OR);
-> 	}
-> 	// 创建where子句 重点，上面的Lambda表达式用的就是这个方法
->     // Root是From子句的根类型
->     // CriteriaQuery封装高级查询功能，包括：select(指定返回的字段)
-> 	@Nullable
-> 	Predicate toPredicate(Root<T> root, CriteriaQuery<?> query, CriteriaBuilder criteriaBuilder);
-> }
-> ```
 >
 > > Hibenate的Criteria查询解析
 > >
@@ -286,6 +243,12 @@ public ResponseEntity<Page<User>> getUserPage(final int pageId, final int pageSi
 > ```
 >
 > ​	如何，是不是大大的简化的代码量呢？
+>
+> ​	我们有必要讲解下如何使用Specification
+>
+> > Specification
+> >
+> > 
 
 ### 分页查询
     使用Pageable来实现分页，需要传递页码和页距两个参数
