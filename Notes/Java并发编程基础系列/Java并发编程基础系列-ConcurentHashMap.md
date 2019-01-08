@@ -1,4 +1,4 @@
-# Java基础系列-ConcurrentHashMap 1.8
+# Java并发编程基础系列-ConcurrentHashMap 1.8
 ## 概述
     ConcurrentHashMap的HashMap的线程安全版本，当我们在多线程并发环境中编程时使用ConcurrentHashMap来代替HashMap。
     ConcurrentHashMap底层结构和实现原理基本与HashMap雷同，只是增加了针对并发的处理。
