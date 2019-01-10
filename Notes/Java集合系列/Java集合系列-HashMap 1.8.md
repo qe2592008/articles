@@ -1,4 +1,4 @@
-# Java基础系列-HashMap 1.8
+# Java集合系列-HashMap 1.8
 ## 概述
     HashMap是基于哈希实现的映射集合。
     HashMap可以拥有null键和null值，但是null键只能有一个，null值不做限制。HashTable是不允许null键和值的。
