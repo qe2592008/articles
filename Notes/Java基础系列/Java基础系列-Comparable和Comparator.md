@@ -72,27 +72,27 @@ public interface Comparator<T> {
     default Comparator<T> thenComparingDouble(ToDoubleFunction<? super T> keyExtractor) {
         return thenComparing(comparingDouble(keyExtractor));
     }
-    // 1.8新增默认方法：用于得到一个相反的排序的比较器，这里针对的是内置的排序方式（即继承Comparable）
+    // 1.8新增静态方法：用于得到一个相反的排序的比较器，这里针对的是内置的排序方式（即继承Comparable）
     public static <T extends Comparable<? super T>> Comparator<T> reverseOrder() {
         return Collections.reverseOrder();
     }
-    // 1.8新增默认方法：用于得到一个实现了Comparable接口的类的比较方式的比较器
+    // 1.8新增静态方法：用于得到一个实现了Comparable接口的类的比较方式的比较器
     // 简言之就是将Comparable定义的比较方式使用Comparator实现
     @SuppressWarnings("unchecked")
     public static <T extends Comparable<? super T>> Comparator<T> naturalOrder() {
         return (Comparator<T>) Comparators.NaturalOrderComparator.INSTANCE;
     }
-    // 1.8新增默认方法：得到一个null亲和的比较器，null小于非null，两个null相等，如果全不是null,
+    // 1.8新增静态方法：得到一个null亲和的比较器，null小于非null，两个null相等，如果全不是null,
     // 则使用指定的比较器比较，若未指定比较器，则非null全部相等返回0
     public static <T> Comparator<T> nullsFirst(Comparator<? super T> comparator) {
         return new Comparators.NullComparator<>(true, comparator);
     }
-    // 1.8新增默认方法：得到一个null亲和的比较器，null大于非null，两个null相等，如果全不是null,
+    // 1.8新增静态方法：得到一个null亲和的比较器，null大于非null，两个null相等，如果全不是null,
     // 则使用指定的比较器比较，若未指定比较器，则非null全部相等返回0
     public static <T> Comparator<T> nullsLast(Comparator<? super T> comparator) {
         return new Comparators.NullComparator<>(false, comparator);
     }
-    // 1.8新增默认方法：使用指定的键比较器用于执行键的比较
+    // 1.8新增静态方法：使用指定的键比较器用于执行键的比较
     public static <T, U> Comparator<T> comparing(
             Function<? super T, ? extends U> keyExtractor,
             Comparator<? super U> keyComparator)
@@ -103,7 +103,7 @@ public interface Comparator<T> {
             (c1, c2) -> keyComparator.compare(keyExtractor.apply(c1),
                                               keyExtractor.apply(c2));
     }
-    // 1.8新增默认方法：执行键比较，采用内置比较方式，key的类必须实现Comparable
+    // 1.8新增静态方法：执行键比较，采用内置比较方式，key的类必须实现Comparable
     public static <T, U extends Comparable<? super U>> Comparator<T> comparing(
             Function<? super T, ? extends U> keyExtractor)
     {
@@ -111,19 +111,19 @@ public interface Comparator<T> {
         return (Comparator<T> & Serializable)
             (c1, c2) -> keyExtractor.apply(c1).compareTo(keyExtractor.apply(c2));
     }
-    // 1.8新增默认方法：用于int类型键的比较
+    // 1.8新增静态方法：用于int类型键的比较
     public static <T> Comparator<T> comparingInt(ToIntFunction<? super T> keyExtractor) {
         Objects.requireNonNull(keyExtractor);
         return (Comparator<T> & Serializable)
             (c1, c2) -> Integer.compare(keyExtractor.applyAsInt(c1), keyExtractor.applyAsInt(c2));
     }
-    // 1.8新增默认方法：用于long类型键的比较
+    // 1.8新增静态方法：用于long类型键的比较
     public static <T> Comparator<T> comparingLong(ToLongFunction<? super T> keyExtractor) {
         Objects.requireNonNull(keyExtractor);
         return (Comparator<T> & Serializable)
             (c1, c2) -> Long.compare(keyExtractor.applyAsLong(c1), keyExtractor.applyAsLong(c2));
     }
-    // 1.8新增默认方法：用于double类型键的比较
+    // 1.8新增静态方法：用于double类型键的比较
     public static<T> Comparator<T> comparingDouble(ToDoubleFunction<? super T> keyExtractor) {
         Objects.requireNonNull(keyExtractor);
         return (Comparator<T> & Serializable)
@@ -204,11 +204,6 @@ public class Main {
         printArray(users);
     }
     public static void printArray (User[] users) {
-        for (User user:users) {
-            System.out.print(user.toString());
-        }
-    }
-    public static void printList (List<User> users) {
         for (User user:users) {
             System.out.print(user.toString());
         }

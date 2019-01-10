@@ -81,7 +81,12 @@ public class UserService {
 ### 方法名匹配
 在UserRepository中定义按照规则命名的方法，JPA可以将其自动转换为SQL，而免去手动编写的烦恼，比如定义如下方法：
 ```java
-User getUserByUseIdNo(String useIdNo);
+@Transactional
+public interface UserRepository extends JpaRepository<User, Serializable> {
+    //...
+    User getUserByUseIdNo(String useIdNo);
+    //...
+}
 ```
 JPA会自动将其转换为如下的SQL：
 ```sql
@@ -107,9 +112,14 @@ select * from USER where use_id_no = ?
 ### @Query注解
     使用@Query注解在接口方法之上自定义执行SQL。
 ```java
-@Modifying
-@Query(value = "update USER set USE_PHONE_NUM = :num WHERE USE_ID= :useId", nativeQuery = true)
-void updateUsePhoneNum(@Param(value = "num") String num, @Param(value = "useId") int useId);
+@Transactional
+public interface UserRepository extends JpaRepository<User, Serializable> {
+    //...
+    @Modifying
+    @Query(value = "update USER set USE_PHONE_NUM = :num WHERE USE_ID= :useId", nativeQuery = true)
+    void updateUsePhoneNum(@Param(value = "num") String num, @Param(value = "useId") int useId);
+    //...
+}
 ```
     上面的更新语句必须加上@Modifying注解，其实在JpaRepository中并备有定义任何更新的方法，所有的更新操作均需要我们自己来定义，一般采用上面的方式来完成。
 ```java
@@ -151,207 +161,216 @@ public interface UsersRepository extends JpaSpecificationExecutor<User>, JpaRepo
 
 #### 第二步：使用Specification
 
-> 用法解析：
->
-> ​	首先看Specification接口，在其中只有一个抽象方法，所以它就是一个函数式接口，另外还定义了两个静态方法，两个默认方法：我们来看看源码：
->
-> > Hibenate的Criteria查询解析
-> >
-> > - EntityManager：实体管理器，这是持久化的开端，通过它的getCriteriaBuilder方法可以得到条件构造器CriteriaBuilder，而其本身的实例是被自动创建到IOC容器的，可以直接注入使用。
-> >
-> > - CriteriaBuilder：条件构造器，用于构造查询条件，可以拥有多个，通过它的createQuery方法可以获得一个CriteriaQuery实例
-> >
-> > - CriteriaQuery：高级查询功能，涉及：
-> >
-> >   - select：用于指定返回对象，代表SQL中的select子句
-> >   - multiselect：用于指定具体要返回的多个字段，代表SQL中的select子句
-> >   - where：用于聚合所有的查询条件谓语，代表SQL中的where子句
-> >   - groupBy：用于分组，代表SQL中的group By子句
-> >   - having：代表SQL中的having子句
-> >   - orderBy：代表SQL中的order by子句
-> >   - distinct：代表distinct关键字（去重）
-> >
-> >   可以通过它的from方法得到Root根对象
-> >
-> > - Root：代表的是From子句，这里一般代表查询的根对象
-> >
-> > ```java
-> > // EntityManager是一切的开始，直接注入即可使用
-> > @Autowired
-> > private EntityManager entityManager;
-> > 
-> > public ResponseEntity<Page<User>> getUserList(){
-> >     // CriteriaBuilder是条件构造器
-> >     CriteriaBuilder criteriaBuilder = entityManager.getCriteriaBuilder();
-> >     // 创建查询用户分页数据的查询实例
-> >     CriteriaQuery<User> criteriaQuery = criteriaBuilder.createQuery(User.class);
-> >     // 创建查询用户数据总量的查询实例
-> >     CriteriaQuery<Tuple> criteriaCountQuery = criteriaBuilder.createQuery(Tuple.class);
-> >     // 设置两个查询的来源，即from哪个模型对应的表
-> >     Root<User> root = criteriaQuery.from(User.class);
-> >     Root<User> countRoot = criteriaCountQuery.from(User.class);
-> >     // 使用CriteriaBuilder来构造查询条件p1和p2
-> >     Predicate p1 = criteriaBuilder.equal(root.get("useState"), UseSex.MAN);
-> >     Predicate p2 = criteriaBuilder.or(
-> >         criteriaBuilder.equal(root.get("useState"),UseState.COMMON),
-> >         criteriaBuilder.equal(root.get("useState"),UseState.CANCLE));
-> >     // 将查询条件连同其他一些需求条件一起封装到CriteriaQuery中
-> >     criteriaQuery
-> >         .where(p1,p2)// 组合条件
-> >         .distinct(true)// 去重
-> >         .select(root)// 设置查询对象
-> >         .orderBy(criteriaBuilder.asc(root.get("createTime")));// 排序
-> >     criteriaCountQuery
-> >                 .where(p1,p2)// 组合条件
-> >                 .distinct(true)// 去重
-> >                 .multiselect(criteriaBuilder
-> >                         .count(countRoot.get("useId"))// 设置查询内容，这里为count
-> >                         .alias("total"));// 为count设置别名，用于下面获取
-> >     // 创建最终的查询对象Query，它和CriteriaQuery不同之处在于，
-> >     // 前者是最终执行查询操作并处理结果的查询对象，后者是用来组装的查询功能的查询对象，
-> >     // 简单的说，这个createQuery的作用就是将之前组装好的查询对象，
-> >     // 编译成为正在的SQL字符串封装到Query中
-> >     Query query = entityManager.createQuery(criteriaQuery);
-> >     Query countQuery = entityManager.createQuery(criteriaCountQuery);
-> >     query.setMaxResults(pageSize);
-> >     query.setFirstResult(pageId * pageSize);
-> >     // 执行查询操作，并返回结果
-> >     List<User> users = query.getResultList();
-> >     List<Tuple> tuples = countQuery.getResultList();
-> >     Tuple tu = tuples.get(0);
-> >     Long count = (Long)tu.get("total");
-> >     Page<User> userPage = new PageImpl<User>(users, pageable,count);
-> >     return ResponseEntity.ok(userPage);
-> > }
-> > ```
->
-> ​	单独使用Hibernate就是这样，但是我们使用Spring Data JPA的时候，不必如此，因为在JPA中的Specification为我们作了封装，也就是准备工作，将CriteriaBuilder，CriteriaQuery，Root这三者都准备好了，可以直接使用，而且对最后的执行查询的操作也做了封装，而我们的工作就剩下组装查询实例CriteriaQuery了。
->
-> ​	而且Specification接口是一个函数式接口，我们可以采用Lambda来编程，非常简单，就上面的代码可以简化为：
->
-> ```java
-> public ResponseEntity<Page<User>> getUserList(final int pageId, final int pageSize){
->     Pageable pageable = new PageRequest(pageId, pageSize);
->     return ResponseEntity.ok(usersRepository.findAll((root, query, cb) -> {
->         Predicate p1 = cb.equal(root.get("useSex"), UseSex.MAN);
->         Predicate p2 = cb.or(
->             cb.equal(root.get("useState"),UseState.COMMON),
->             cb.equal(root.get("useState"),UseState.FREEZE));
->         query.where(p1, p2).orderBy(cb.asc(root.get("createTime")));
->         return null;
->     }, pageable));
-> }
-> ```
->
-> ​	如何，是不是大大的简化的代码量呢？
->
-> ​	我们有必要讲解下如何使用Specification
->
-> > Specification解析
-> >
-> > ​	Specification是一个函数式接口，源码如下：
-> >
-> > ```java
-> > public interface Specification<T> extends Serializable {
-> > 	long serialVersionUID = 1L;
-> > 	// 这个是非的意思
-> > 	static <T> Specification<T> not(Specification<T> spec) {
-> > 		return Specifications.negated(spec);
-> > 	}
-> > 	// 这个是
-> > 	static <T> Specification<T> where(Specification<T> spec) {
-> > 		return Specifications.where(spec);
-> > 	}
-> > 	// 这个是与的意思
-> > 	default Specification<T> and(Specification<T> other) {
-> > 		return Specifications.composed(this, other, AND);
-> > 	}
-> > 	// 这个是或的意思
-> > 	default Specification<T> or(Specification<T> other) {
-> > 		return Specifications.composed(this, other, OR);
-> > 	}
-> > 	// 创建where子句 重点，上面的Lambda表达式用的就是这个方法
-> >     // Root是From子句的根类型
-> >     // CriteriaQuery封装高级查询功能，包括：select(指定返回的字段)
-> > 	@Nullable
-> > 	Predicate toPredicate(Root<T> root, CriteriaQuery<?> query, CriteriaBuilder criteriaBuilder);
-> > }
-> > ```
-> >
-> > ​	既然Specification是函数式接口，那么其唯一的抽象方法就是开放的入口，在这个入口的前后，都已经被封装好，我们只需要通过这个入口提供该方法的实现即可，这个方法中需要的是条件组装、查询对象组装等内容。
-> >
-> > ​	可以简单的看看它在哪里被调用：
-> >
-> > ```java
-> > // JPA中提供的公共方法，用于将Specification解封为Criteria
-> > private <S, U extends T> Root<U> applySpecificationToCriteria(
-> >     @Nullable Specification<U> spec, Class<U> domainClass,
-> >     CriteriaQuery<S> query) {
-> >     Assert.notNull(domainClass, "Domain class must not be null!");
-> >     Assert.notNull(query, "CriteriaQuery must not be null!");
-> >     Root<U> root = query.from(domainClass);
-> >     if (spec == null) {
-> >         return root;
-> >     }
-> >     CriteriaBuilder builder = em.getCriteriaBuilder();
-> >     Predicate predicate = spec.toPredicate(root, query, builder);
-> >     if (predicate != null) {
-> >         query.where(predicate);
-> >     }
-> >     return root;
-> > }
-> > ```
-> >
-> > ​	上面的公共方法被如下两个方法调用，第一个是getQuery方法，主要用于获取查询记录
-> >
-> > ```java
-> > protected <S extends T> TypedQuery<S> getQuery(@Nullable Specification<S> spec, Class<S> domainClass, Sort sort) {
-> >     CriteriaBuilder builder = em.getCriteriaBuilder();
-> >     CriteriaQuery<S> query = builder.createQuery(domainClass);
-> >     Root<S> root = applySpecificationToCriteria(spec, domainClass, query);
-> >     query.select(root);
-> >     if (sort.isSorted()) {
-> >         query.orderBy(toOrders(sort, root, builder));
-> >     }
-> >     return applyRepositoryMethodMetadata(em.createQuery(query));
-> > }
-> > ```
-> >
-> > ​	第二个是getCountQuery方法，主要用户获取查询记录的个数
-> >
-> > ```java
-> > protected <S extends T> TypedQuery<Long> getCountQuery(@Nullable Specification<S> spec, Class<S> domainClass) {
-> >     CriteriaBuilder builder = em.getCriteriaBuilder();
-> >     CriteriaQuery<Long> query = builder.createQuery(Long.class);
-> >     Root<S> root = applySpecificationToCriteria(spec, domainClass, query);
-> >     if (query.isDistinct()) {
-> >         query.select(builder.countDistinct(root));
-> >     } else {
-> >         query.select(builder.count(root));
-> >     }
-> >     // Remove all Orders the Specifications might have applied
-> >     query.orderBy(Collections.<Order> emptyList());
-> >     return em.createQuery(query);
-> > }
-> > ```
-> >
-> > ​	上面的方法最后被如下所示的方法所调用，而如下的方法却是有JPA封装好的持久化接口中定义的持久化方法的具体实现。这个正是我们在具体的项目中调用的方法，使用这样的方法，就免去了像之前那种纯粹由Hibernate来实现复杂查询的大部分代码了，很简单，这里做了封装，只将Specification交给我们来自定义。
-> >
-> > ```java
-> > @Override
-> > public <S extends T> long count(Example<S> example) {
-> >     return executeCountQuery(getCountQuery(new ExampleSpecification<S>(example), example.getProbeType()));
-> > }
-> > @Override
-> > public <S extends T> Optional<S> findOne(Example<S> example) {
-> >     try {
-> >         return Optional.of(
-> >             getQuery(new ExampleSpecification<S>(example), example.getProbeType(), Sort.unsorted()).getSingleResult());
-> >     } catch (NoResultException e) {
-> >         return Optional.empty();
-> >     }
-> > }
-> > ```
+##### 用法解析
+首先看Specification接口，在其中只有一个抽象方法，所以它就是一个函数式接口，另外还定义了两个静态方法，两个默认方法：我们来看看源码：
+
+ Hibenate的Criteria查询解析
+
+- EntityManager：实体管理器，这是持久化的开端，通过它的getCriteriaBuilder方法可以得到条件构造器CriteriaBuilder，而其本身的实例是被自动创建到IOC容器的，可以直接注入使用。
+- CriteriaBuilder：条件构造器，用于构造查询条件，可以拥有多个，通过它的createQuery方法可以获得一个CriteriaQuery实例
+- CriteriaQuery：高级查询功能，涉及：
+  - select：用于指定返回对象，代表SQL中的select子句
+  - multiselect：用于指定具体要返回的多个字段，代表SQL中的select子句
+  - where：用于聚合所有的查询条件谓语，代表SQL中的where子句
+  - groupBy：用于分组，代表SQL中的group By子句
+  - having：代表SQL中的having子句
+  - orderBy：代表SQL中的order by子句
+  - distinct：代表distinct关键字（去重）
+
+   可以通过它的from方法得到Root根对象
+- Root：代表的是From子句，这里一般代表查询的根对象
+
+```java
+// EntityManager是一切的开始，直接注入即可使用
+@Repository
+public class UserRepository {
+    @Autowired
+    private EntityManager entityManager;
+    public ResponseEntity<Page<User>> getUserList(){
+         // CriteriaBuilder是条件构造器
+         CriteriaBuilder criteriaBuilder = entityManager.getCriteriaBuilder();
+         // 创建查询用户分页数据的查询实例
+         CriteriaQuery<User> criteriaQuery = criteriaBuilder.createQuery(User.class);
+         // 创建查询用户数据总量的查询实例
+         CriteriaQuery<Tuple> criteriaCountQuery = criteriaBuilder.createQuery(Tuple.class);
+         // 设置两个查询的来源，即from哪个模型对应的表
+         Root<User> root = criteriaQuery.from(User.class);
+         Root<User> countRoot = criteriaCountQuery.from(User.class);
+         // 使用CriteriaBuilder来构造查询条件p1和p2
+         Predicate p1 = criteriaBuilder.equal(root.get("useState"), UseSex.MAN);
+         Predicate p2 = criteriaBuilder.or(
+             criteriaBuilder.equal(root.get("useState"),UseState.COMMON),
+             criteriaBuilder.equal(root.get("useState"),UseState.CANCLE));
+         // 将查询条件连同其他一些需求条件一起封装到CriteriaQuery中
+         criteriaQuery
+             .where(p1,p2)// 组合条件
+             .distinct(true)// 去重
+             .select(root)// 设置查询对象
+             .orderBy(criteriaBuilder.asc(root.get("createTime")));// 排序
+         criteriaCountQuery
+                     .where(p1,p2)// 组合条件
+                     .distinct(true)// 去重
+                     .multiselect(criteriaBuilder
+                             .count(countRoot.get("useId"))// 设置查询内容，这里为count
+                             .alias("total"));// 为count设置别名，用于下面获取
+         // 创建最终的查询对象Query，它和CriteriaQuery不同之处在于，
+         // 前者是最终执行查询操作并处理结果的查询对象，后者是用来组装的查询功能的查询对象，
+         // 简单的说，这个createQuery的作用就是将之前组装好的查询对象，
+         // 编译成为正在的SQL字符串封装到Query中
+         Query query = entityManager.createQuery(criteriaQuery);
+         Query countQuery = entityManager.createQuery(criteriaCountQuery);
+         query.setMaxResults(pageSize);
+         query.setFirstResult(pageId * pageSize);
+         // 执行查询操作，并返回结果
+         List<User> users = query.getResultList();
+         List<Tuple> tuples = countQuery.getResultList();
+         Tuple tu = tuples.get(0);
+         Long count = (Long)tu.get("total");
+         Page<User> userPage = new PageImpl<User>(users, pageable,count);
+         return ResponseEntity.ok(userPage);
+    }
+}
+```
+单独使用Hibernate就是这样，但是我们使用Spring Data JPA的时候，不必如此，因为在JPA中的Specification为我们作了封装，也就是准备工作，将CriteriaBuilder，CriteriaQuery，Root这三者都准备好了，可以直接使用，而且对最后的执行查询的操作也做了封装，而我们的工作就剩下组装查询实例CriteriaQuery了。
+而且Specification接口是一个函数式接口，我们可以采用Lambda来编程，非常简单，就上面的代码可以简化为：
+```java
+@Repository
+public class UserRepository {
+    public ResponseEntity<Page<User>> getUserList(final int pageId, final int pageSize){
+        Pageable pageable = new PageRequest(pageId, pageSize);
+        return ResponseEntity.ok(usersRepository.findAll((root, query, cb) -> {
+            Predicate p1 = cb.equal(root.get("useSex"), UseSex.MAN);
+            Predicate p2 = cb.or(
+                cb.equal(root.get("useState"),UseState.COMMON),
+                cb.equal(root.get("useState"),UseState.FREEZE));
+            query.where(p1, p2).orderBy(cb.asc(root.get("createTime")));
+            return null;
+        }, pageable));
+    }
+}
+```
+如何，是不是大大的简化的代码量呢？
+
+我们有必要讲解下Specification的原理
+##### Specification解析
+Specification是一个函数式接口，源码如下：
+```java
+public interface Specification<T> extends Serializable {
+    long serialVersionUID = 1L;
+    // 这个是非的意思
+    static <T> Specification<T> not(Specification<T> spec) {
+        return Specifications.negated(spec);
+    }
+    // 这个是
+    static <T> Specification<T> where(Specification<T> spec) {
+        return Specifications.where(spec);
+    }
+    // 这个是与的意思
+    default Specification<T> and(Specification<T> other) {
+        return Specifications.composed(this, other, AND);
+    }
+    // 这个是或的意思
+    default Specification<T> or(Specification<T> other) {
+        return Specifications.composed(this, other, OR);
+    }
+    // 创建where子句 重点，上面的Lambda表达式用的就是这个方法
+     // Root是From子句的根类型
+     // CriteriaQuery封装高级查询功能，包括：select(指定返回的字段)
+    @Nullable
+    Predicate toPredicate(Root<T> root, CriteriaQuery<?> query, CriteriaBuilder criteriaBuilder);
+}
+```
+既然Specification是函数式接口，那么其唯一的抽象方法就是开放的入口，在这个入口的前后，都已经被封装好，我们只需要通过这个入口提供该方法的实现即可，这个方法中需要的是条件组装、查询对象组装等内容。
+可以简单的看看它在哪里被调用：
+```java
+// JPA中提供的公共方法，用于将Specification解封为Criteria
+@Repository
+@Transactional(readOnly = true)
+public class SimpleJpaRepository<T, ID> implements JpaRepositoryImplementation<T, ID> {
+    //...
+    private <S, U extends T> Root<U> applySpecificationToCriteria(
+        @Nullable Specification<U> spec, Class<U> domainClass,
+        CriteriaQuery<S> query) {
+        Assert.notNull(domainClass, "Domain class must not be null!");
+        Assert.notNull(query, "CriteriaQuery must not be null!");
+        Root<U> root = query.from(domainClass);
+        if (spec == null) {
+         return root;
+        }
+        CriteriaBuilder builder = em.getCriteriaBuilder();
+        Predicate predicate = spec.toPredicate(root, query, builder);
+        if (predicate != null) {
+         query.where(predicate);
+        }
+        return root;
+    }
+    //...
+}
+```
+上面的公共方法被如下两个方法调用，第一个是getQuery方法，主要用于获取查询记录
+```java
+@Repository
+@Transactional(readOnly = true)
+public class SimpleJpaRepository<T, ID> implements JpaRepositoryImplementation<T, ID> {
+    //...
+    protected <S extends T> TypedQuery<S> getQuery(@Nullable Specification<S> spec, Class<S> domainClass, Sort sort) {
+         CriteriaBuilder builder = em.getCriteriaBuilder();
+         CriteriaQuery<S> query = builder.createQuery(domainClass);
+         Root<S> root = applySpecificationToCriteria(spec, domainClass, query);
+         query.select(root);
+         if (sort.isSorted()) {
+             query.orderBy(toOrders(sort, root, builder));
+         }
+         return applyRepositoryMethodMetadata(em.createQuery(query));
+    }
+    //...
+}
+```
+第二个是getCountQuery方法，主要用户获取查询记录的个数
+```java
+@Repository
+@Transactional(readOnly = true)
+public class SimpleJpaRepository<T, ID> implements JpaRepositoryImplementation<T, ID> {
+    //...
+    protected <S extends T> TypedQuery<Long> getCountQuery(@Nullable Specification<S> spec, Class<S> domainClass) {
+        CriteriaBuilder builder = em.getCriteriaBuilder();
+        CriteriaQuery<Long> query = builder.createQuery(Long.class);
+        Root<S> root = applySpecificationToCriteria(spec, domainClass, query);
+        if (query.isDistinct()) {
+            query.select(builder.countDistinct(root));
+        } else {
+            query.select(builder.count(root));
+        }
+        // Remove all Orders the Specifications might have applied
+        query.orderBy(Collections.<Order> emptyList());
+        return em.createQuery(query);
+    }
+    //...
+}
+```
+上面的方法最后被如下所示的方法所调用，而如下的方法却是有JPA封装好的持久化接口中定义的持久化方法的具体实现。这个正是我们在具体的项目中调用的方法，使用这样的方法，就免去了像之前那种纯粹由Hibernate来实现复杂查询的大部分代码了，很简单，这里做了封装，只将Specification交给我们来自定义。
+ ```java
+@Repository
+@Transactional(readOnly = true)
+public class SimpleJpaRepository<T, ID> implements JpaRepositoryImplementation<T, ID> {
+    @Override
+    public <S extends T> long count(Example<S> example) {
+        return executeCountQuery(getCountQuery(new ExampleSpecification<S>(example), example.getProbeType()));
+    }
+    @Override
+    public <S extends T> Optional<S> findOne(Example<S> example) {
+        try {
+            return Optional.of(
+                getQuery(new ExampleSpecification<S>(example), example.getProbeType(), Sort.unsorted()).getSingleResult());
+        } catch (NoResultException e) {
+            return Optional.empty();
+        }
+    }
+}
+ ```
+##### Specification复杂应用
+###### 多表联表查询
+
 
 ### 分页查询
     使用Pageable来实现分页，需要传递页码和页距两个参数，分页查询的方式在之前的复杂查询里面已经罗列过了，这里不再赘述。
