@@ -1,17 +1,13 @@
 # Java基础系列-Comparable和Comparator
 ## 概述
-    Java中的排序是由Comparable和Comparator这两个接口来提供的。
-    Comparable表示可被排序的，实现该接口的类的对象自动拥有排序功能。
-    Comparator则表示一个比较器，实现了该接口的的类的对象是一个针对目标类的对象定义的比较器，一般情况，这个比较器将作为一个参数进行传递。
+&#160;&#160;&#160;&#160;Java中的排序是由Comparable和Comparator这两个接口来提供的。  
+&#160;&#160;&#160;&#160;Comparable表示可被排序的，实现该接口的类的对象自动拥有排序功能。  
+&#160;&#160;&#160;&#160;Comparator则表示一个比较器，实现了该接口的的类的对象是一个针对目标类的对象定义的比较器，一般情况，这个比较器将作为一个参数进行传递。
 ## Comparable
-    Comparable的中文意思就是可被排序的，代表本身支持排序功能。
-    只要我们的类实现了这个接口，那么这个类的对象就会自动拥有了可被排序的能力。而且这个排序被称为类的自然顺序。
-    这个类的对象的列表可以被Collections.sort和Arrays.sort来执行排序。
-    同时这个类的实例具备作为sorted map的key和sorted set的元素的资格。
-    假如a和b都是实现了Comparable接口的类C的实例，那么只有当a.compareTo(b)的结果与a.equals(b)的结果一致时，才称类C的自然顺序与equals一致。
-    强烈建议将类的自然顺序和equals的结果保持一致，因为如果不一致的话，由该类对象为键的sorted map和由该类对象为元素的sorted set的行为将会变得很怪异。
-    例如对于一个实现了Comparable接口的元素的有序集合sorted set而言，如果a.equals(b)结果为false，并且a.compareTo(b)==0，则第二个元素的添加操作将会失败，因为在sorted set看来，二者在排序上是一致的，它不报保存重复的元素。
-    事实上，Java中的类基本都是自然顺序与equals一致的，除了BigDecimal，因为BigDecimal中的自然顺序和值相同但精度不同的元素（例如4和4.00）的equals均一致。
+&#160;&#160;&#160;&#160;Comparable的中文意思就是可被排序的，代表本身支持排序功能。只要我们的类实现了这个接口，那么这个类的对象就会自动拥有了可被排序的能力。而且这个排序被称为类的自然顺序。这个类的对象的列表可以被Collections.sort和Arrays.sort来执行排序。同时这个类的实例具备作为sorted map的key和sorted set的元素的资格。  
+&#160;&#160;&#160;&#160;假如a和b都是实现了Comparable接口的类C的实例，那么只有当a.compareTo(b)的结果与a.equals(b)的结果一致时，才称类C的自然顺序与equals一致。强烈建议将类的自然顺序和equals的结果保持一致，因为如果不一致的话，由该类对象为键的sorted map和由该类对象为元素的sorted set的行为将会变得很怪异。  
+&#160;&#160;&#160;&#160;例如对于一个实现了Comparable接口的元素的有序集合sorted set而言，如果a.equals(b)结果为false，并且a.compareTo(b)==0，则第二个元素的添加操作将会失败，因为在sorted set看来，二者在排序上是一致的，它不报保存重复的元素。  
+&#160;&#160;&#160;&#160;事实上，Java中的类基本都是自然顺序与equals一致的，除了BigDecimal，因为BigDecimal中的自然顺序和值相同但精度不同的元素（例如4和4.00）的equals均一致。
 ### 源码解析
 ```java
 public interface Comparable<T> {
