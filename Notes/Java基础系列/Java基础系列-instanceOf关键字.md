@@ -1,8 +1,8 @@
 # Java基础系列-instanceof关键字
-&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;instanceof关键字是在Java类中实现equals方法最常使用的关键字，表示其左边的对象是否是右边类型的实例，这里右边的类型可以扩展到继承、实现结构中，可以是其真实类型，或者真实类型的超类型、超接口类型等。  
-&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;instanceof左边必须是对象实例或者null类型，否则无法通过编译。  
-&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;instanceof右边必须是左边对象的可转换类型（可强转），否则无法通过编译。  
-&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;使用实例：
+instanceof关键字是在Java类中实现equals方法最常使用的关键字，表示其左边的对象是否是右边类型的实例，这里右边的类型可以扩展到继承、实现结构中，可以是其真实类型，或者真实类型的超类型、超接口类型等。  
+instanceof左边必须是对象实例或者null类型，否则无法通过编译。  
+instanceof右边必须是左边对象的可转换类型（可强转），否则无法通过编译。  
+使用实例：
 ```java
 interface IFather1{}
 interface ISon1 extends IFather1{}
@@ -20,7 +20,7 @@ public class InstanceofTest {
     }
 }
 ```
-&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;执行结果为：
+执行结果为：
 ```text
 true
 true
@@ -28,10 +28,10 @@ true
 true
 false
 ```
-&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;如上实例所示：除了最后一个，前四个全部为true，查看类的继承关系如下：  
+如上实例所示：除了最后一个，前四个全部为true，查看类的继承关系如下：  
 ![继承结构图](../images/extendsStruct.png)  
-&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;可以明显看到，Son1类是最终的类，其对象son1可以instanceof上面所以的接口和类（IFather1、ISon1、Father1、Son1），而Father1的实例father1上级只有IFather1接口和本类Father1能instanceof，其余均无法成功。  
-&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;这样我们就能理解instanceof的用途了，最后说说其在equals中的作用，我们来看个简单的equals实现（来自java.lang.String类）：
+可以明显看到，Son1类是最终的类，其对象son1可以instanceof上面所以的接口和类（IFather1、ISon1、Father1、Son1），而Father1的实例father1上级只有IFather1接口和本类Father1能instanceof，其余均无法成功。  
+这样我们就能理解instanceof的用途了，最后说说其在equals中的作用，我们来看个简单的equals实现（来自java.lang.String类）：
 ```java
 public final class String
     implements java.io.Serializable, Comparable<String>, CharSequence {
@@ -63,7 +63,7 @@ public final class String
     }
 }
 ```
-&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;明显使用到了instanceof关键字，其目的就是为了判断给定的参数对象是否是String类的实例。区别于getClass()方法，后者得到的是当前对象的实际类型，不带继承关系。
+明显使用到了instanceof关键字，其目的就是为了判断给定的参数对象是否是String类的实例。区别于getClass()方法，后者得到的是当前对象的实际类型，不带继承关系。
 ```java
 public class InstanceofTest {
     public static void main(String[] args){
@@ -74,10 +74,10 @@ public class InstanceofTest {
     }
 }
 ```
-&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;结果为：
+结果为：
 ```text
 class Son1
 class Father1
 ```
-&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;参考：
+参考：
 - [Java关键字——instanceof](http://www.cnblogs.com/ysocean/p/8486500.html)
