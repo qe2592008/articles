@@ -1,6 +1,7 @@
 # SpringBoot高级系列-SpringCache使用
 ## 概述
 SpringCache本身是一个缓存体系的抽象实现，并没有具体的缓存能力，要使用SpringCache还需要配合具体的缓存实现来完成。
+
 虽然如此，但是SpringCache是所有Spring支持的缓存结构的基础，而且所有的缓存的使用最后都要归结于SpringCache，那么一来，要想使用SpringCache，还是要仔细研究一下的。
 ## 缓存注解
 SpringCache缓存功能的实现是依靠下面的这几个注解完成的。
@@ -72,6 +73,7 @@ public interface Ordered {
 由上面的源码可以看出，缓存功能是依靠AOP来实现的。
 ### @Cacheable
 该注解用于标注于方法之上用于标识该方法的返回结果需要被缓存起来，标注于类之上标识该类中所有方法均需要将结果缓存起来。
+
 该注解标注的方法每次被调用前都会触发缓存校验，校验指定参数的缓存是否已存在（已发生过相同参数的调用），若存在，直接返回缓存结果，否则执行方法内容，最后将方法执行结果保存到缓存中。
 #### 使用
 ```java
@@ -90,8 +92,11 @@ public class AnimalService {
 }
 ```
 上面的实例中两个@Cacheable配置效果其实是一样的，其中value指定的缓存的名称，它和另一个方法cacheName效果一样，一般来说这个缓存名称必须要有，因为这个是区别于其他方法的缓存的唯一方法。
+
 这里我们介绍一下缓存的简单结构，在缓存中，每个这样的缓存名称的名下都会存在着多个缓存条目，这些缓存条目对应在使用不同的参数调用当前方法时生成的缓存，所有一个缓存名称并不是一个缓存，而是一系列缓存。
+
 另一个key用于指定当前方法的缓存保存时的键的组合方式，默认的情况下使用所有的参数组合而成，这样可以有效区分不同参数的缓存。当然我们也可以手动指定，指定的方法是使用SPEL表达式。
+
 这里我么来简单看看其源码，了解下其他几个方法的作用：
 ```java
 @Target({ElementType.METHOD, ElementType.TYPE})
@@ -170,7 +175,9 @@ public class AnimalService {
 }
 ```
 这里指定更新缓存，value同样还是缓存名称，这里更新的是上面查询操作的同一缓存，而且key设置为id也与上面的key设置对应。
+
 如此设置之后，每次执行update方法时都会直接执行方法内容，然后将返回的结果保存到缓存中，如果存在相同的key,直接替换缓存内容执行缓存更新。
+
 下面来看看源码：
 ```java
 @Target({ElementType.METHOD, ElementType.TYPE})
@@ -215,8 +222,7 @@ public class AnimalService {
     //...
 }
 ```
-简单明了。
-看看源码：
+简单明了，看看源码：
 ```java
 @Target({ElementType.METHOD, ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
@@ -246,8 +252,7 @@ public @interface CacheEvict {
 }
 ```
 ### @Caching
-这个注解用于组个多个缓存操作，包括针对不用缓存名称的相同操作等。
-源码：
+这个注解用于组个多个缓存操作，包括针对不用缓存名称的相同操作等，源码：
 ```java
 @Target({ElementType.METHOD, ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
@@ -290,8 +295,7 @@ public class AnimalService {
 }
 ```
 ### @CacheConfig
-该注解标注于类之上，用于进行一些公共的缓存相关配置。
-源码为：
+该注解标注于类之上，用于进行一些公共的缓存相关配置。源码为：
 ```java
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)

@@ -1,0 +1,16 @@
+@startuml
+interface Servlet
+interface ServletConfig
+abstract class GenericServlet
+abstract class HttpServlet
+abstract class HttpServletBean
+abstract class FrameworkServlet
+class DispatcherServlet
+
+GenericServlet -> Servlet
+GenericServlet -> ServletConfig
+HttpServlet -> GenericServlet
+HttpServletBean -> HttpServlet
+FrameworkServlet -> HttpServletBean
+DispatcherServlet -> FrameworkServlet
+@enduml

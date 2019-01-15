@@ -1,0 +1,27 @@
+@startuml
+
+interface PropertyAccessor
+interface PropertyEditorRegistry
+interface TypeConverter
+interface ConfigurablePropertyAccessor
+class PropertyEditorRegistrySupport
+abstract class TypeConverterSupport
+abstract class AbstractPropertyAccessor
+abstract class AbstractNestablePropertyAccessor
+interface BeanWrapper
+class BeanWrapperImpl
+
+
+ConfigurablePropertyAccessor -> PropertyAccessor
+ConfigurablePropertyAccessor ->PropertyEditorRegistry
+ConfigurablePropertyAccessor -> TypeConverter
+PropertyEditorRegistrySupport -> PropertyEditorRegistry
+TypeConverterSupport -> TypeConverter
+TypeConverterSupport -> PropertyEditorRegistrySupport
+AbstractPropertyAccessor -> TypeConverterSupport
+AbstractPropertyAccessor -> ConfigurablePropertyAccessor
+AbstractNestablePropertyAccessor -> AbstractPropertyAccessor
+BeanWrapper -> ConfigurablePropertyAccessor
+BeanWrapperImpl -> AbstractNestablePropertyAccessor
+BeanWrapperImpl -> BeanWrapper
+@enduml
