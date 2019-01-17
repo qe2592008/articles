@@ -11,7 +11,7 @@ volatile可以保证内存可见性和有序性，无法保证原子性，原子
 - 可见性：被volatile修饰的变量在被修改之后，会被立即更新到主内存中，读取volatile修饰的变量时需要直接从主内存读取，保证修改的值可见，保证线程安全。
 - 有序性：被volatile修饰的变量的读写操作会被添加内存屏障，保证不会发生重排序，从而保证线程安全。volatile写之前的操作不能重排序到volatile之后，volatile读之后的操作不能重排序到volatile读之前，volatile先写后读的不能重排序
 
-具体可查看[java基础系列--volatile关键字](https://www.cnblogs.com/V1haoge/p/7833881.html)
+具体可查看[java并发编程系列--volatile](/Java并发编程系列-volatile.md)
 ### CAS操作
 CAS操作是直接调用计算机指令来完成操作，属于原子操作。  
 具体查看[Java基础系列-CAS操作](https://github.com/qe2592008/articles/blob/develop/Notes/Java%E5%9F%BA%E7%A1%80%E7%B3%BB%E5%88%97/Java%E5%9F%BA%E7%A1%80%E7%B3%BB%E5%88%97-CAS%E6%93%8D%E4%BD%9C.md)

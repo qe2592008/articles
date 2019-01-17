@@ -332,7 +332,9 @@ public abstract class HttpServletBean extends HttpServlet implements Environment
 ```
 首先进行参数设置，将web.xml中配置的init-param设置到Servlet的对应属性中。
 
-然后进行下面的初始化操作：
+然后进行初始化操作，这里的初始化指的是针对当前Servlet的子容器。
+
+初始化流程为：首先尝试获取Root IOC容器，也就是根容器，这里是一定能获取到的，毕竟咱们上面的源码就是在创建这个根容器，然后通过反射调用XmlWebApplicationContext的构造器创建子容器实例，子容器创建完成后，为其设置环境Environment、父容器、容器ID、ServletContext引用，ServletConfig引用，命名空间、应用监听器（监听容器刷新事件），之后执行指定的容器初始化器，最后就是刷新容器了。
 
 源码7-来自：FrameworkServlet
 ```java
@@ -369,10 +371,12 @@ public abstract class FrameworkServlet extends HttpServletBean implements Applic
 	}
 	//...
     protected WebApplicationContext initWebApplicationContext() {
+	    // 尝试获取根容器
+	    // 在我们分析的项目中，一定是存在根容器的，它就在之前刚刚创建完成
         WebApplicationContext rootContext =
                 WebApplicationContextUtils.getWebApplicationContext(getServletContext());
         WebApplicationContext wac = null;
-
+        // 一般来说，启动时这里webApplicaitonContext是空的
         if (this.webApplicationContext != null) {
             // A context instance was injected at construction time -> use it
             wac = this.webApplicationContext;
@@ -395,13 +399,15 @@ public abstract class FrameworkServlet extends HttpServletBean implements Applic
             // has been registered in the servlet context. If one exists, it is assumed
             // that the parent context (if any) has already been set and that the
             // user has performed any initialization such as setting the context id
+            // 如果为Servlet自定义了容器实例，则直接从ServletContext中获取
             wac = findWebApplicationContext();
         }
         if (wac == null) {
             // No context instance is defined for this servlet -> create a local one
+            // 一般我们也不会自定义容器，所以通常都会走这里
             wac = createWebApplicationContext(rootContext);
         }
-
+        // 下面开始初始化DispatcherServlet
         if (!this.refreshEventReceived) {
             // Either the context is not a ConfigurableApplicationContext with refresh
             // support or the context injected at construction time had already been
@@ -420,41 +426,179 @@ public abstract class FrameworkServlet extends HttpServletBean implements Applic
         return wac;
     }
     //...
+    protected WebApplicationContext createWebApplicationContext(@Nullable WebApplicationContext parent) {
+        return createWebApplicationContext((ApplicationContext) parent);
+    }
+    //...
+    protected WebApplicationContext createWebApplicationContext(@Nullable ApplicationContext parent) {
+        // 获取上下文的类，默认为：XmlWebApplicationContext.class
+	    Class<?> contextClass = getContextClass();
+	    // 校验获取到的上下文类与ConfigurableWebApplicationContext类的关系，是否继承关系
+        if (!ConfigurableWebApplicationContext.class.isAssignableFrom(contextClass)) {
+            throw new ApplicationContextException(
+                    "Fatal initialization error in servlet with name '" + getServletName() +
+                    "': custom WebApplicationContext class [" + contextClass.getName() +
+                    "] is not of type ConfigurableWebApplicationContext");
+        }
+        // 创建容器实例，该容器为XmlWebApplicationContext类型，这里指向ConfigurableWebApplicationContext类型
+        ConfigurableWebApplicationContext wac =
+                (ConfigurableWebApplicationContext) BeanUtils.instantiateClass(contextClass);
+        // 为容器实例设置环境，这个环境是一个新建的StandardServletEnvironment
+        // 这个environment中默认保存着：系统属性、系统环境变量、ServletContext初始化参数、ServletConfig初始化参数
+        wac.setEnvironment(getEnvironment());
+        // 设置父级容器，即根容器
+        wac.setParent(parent);
+        String configLocation = getContextConfigLocation();
+        if (configLocation != null) {
+            wac.setConfigLocation(configLocation);
+        }
+        // 配置并刷新新建的容器
+        configureAndRefreshWebApplicationContext(wac);
+
+        return wac;
+    }
+    //...
+    protected void configureAndRefreshWebApplicationContext(ConfigurableWebApplicationContext wac) {
+	    // 设置容器ID
+        if (ObjectUtils.identityToString(wac).equals(wac.getId())) {
+            // The application context id is still set to its original default value
+            // -> assign a more useful id based on available information
+            if (this.contextId != null) {
+                wac.setId(this.contextId);
+            }
+            else {
+                // Generate default id...
+                wac.setId(ConfigurableWebApplicationContext.APPLICATION_CONTEXT_ID_PREFIX +
+                        ObjectUtils.getDisplayString(getServletContext().getContextPath()) + '/' + getServletName());
+            }
+        }
+        // 当前容器中持有对ServletContext的引用
+        wac.setServletContext(getServletContext());
+        // 当前容器中持有对ServletConfig的引用
+        wac.setServletConfig(getServletConfig());
+        wac.setNamespace(getNamespace());// 设置命名空间
+        // 添加应用监听器，监听容器刷新事件：ContextRefreshedEvent
+        wac.addApplicationListener(new SourceFilteringListener(wac, new ContextRefreshListener()));
+
+        // The wac environment's #initPropertySources will be called in any case when the context
+        // is refreshed; do it eagerly here to ensure servlet property sources are in place for
+        // use in any post-processing or initialization that occurs below prior to #refresh
+        // 这里调用initPropertySources方法的目的是提前检查一下，确保Servlet属性源已就绪
+        ConfigurableEnvironment env = wac.getEnvironment();
+        if (env instanceof ConfigurableWebEnvironment) {
+            ((ConfigurableWebEnvironment) env).initPropertySources(getServletContext(), getServletConfig());
+        }
+        // 容器刷新前的后处理操作，空的，留待扩展
+        postProcessWebApplicationContext(wac);
+        // 容器刷新之前执行初始化器：ApplicationContextInitializer
+        applyInitializers(wac);
+        // 执行容器刷新
+        wac.refresh();
+    }
+    //...
+    protected void applyInitializers(ConfigurableApplicationContext wac) {
+	    // 获取初始化参数中配置的容器初始化器
+        String globalClassNames = getServletContext().getInitParameter(ContextLoader.GLOBAL_INITIALIZER_CLASSES_PARAM);
+        if (globalClassNames != null) {
+            for (String className : StringUtils.tokenizeToStringArray(globalClassNames, INIT_PARAM_DELIMITERS)) {
+                this.contextInitializers.add(loadInitializer(className, wac));
+            }
+        }
+
+        if (this.contextInitializerClasses != null) {
+            for (String className : StringUtils.tokenizeToStringArray(this.contextInitializerClasses, INIT_PARAM_DELIMITERS)) {
+                this.contextInitializers.add(loadInitializer(className, wac));
+            }
+        }
+        // 排序
+        AnnotationAwareOrderComparator.sort(this.contextInitializers);
+        for (ApplicationContextInitializer<ConfigurableApplicationContext> initializer : this.contextInitializers) {
+            // 循环执行所有的容器初始化器
+            initializer.initialize(wac);
+        }
+    }
 }	
 ```
+创建好子容器之后，重点来了，下面就是进行DispatcherServlet的初始化工作了：
+```java
+public class DispatcherServlet extends FrameworkServlet {
+    //...
+    @Override
+	protected void onRefresh(ApplicationContext context) {
+		initStrategies(context);
+	}
 
+	/**
+	 * Initialize the strategy objects that this servlet uses.
+	 * <p>May be overridden in subclasses in order to initialize further strategy objects.
+	 */
+	protected void initStrategies(ApplicationContext context) {
+	    // 初始化Multipart处理器（MultipartResolver），如果BeanFactory中没有指定name（multipartResolver）的Bean，则不执行初始化
+		initMultipartResolver(context);
+		// 初始化Locale处理器（LocaleResolver），如果beanFactory中没有指定的name（localeResolver）的Bean，则使用AcceptHeaderLocaleResolver
+		initLocaleResolver(context);
+		// 初始化theme处理器（ThemeResolver），如果beanFactory中没有指定的name（themeResolver）的Bean，则使用FixedThemeResolver
+		initThemeResolver(context);
+		// 初始化HandlerMappings，如果没有则初始化一个默认的BeanNameUrlHandlerMapping和，必须保证至少有一个HandlerMapping
+		initHandlerMappings(context);
+		// 初始化HandlerAdapters，如果没有则初始化一个默认的SimpleControllerHandlerAdapter,必须要在至少有一个HandlerAdapter
+		initHandlerAdapters(context);
+		// 初始化异常解析器（HandlerExceptionResolvers），如果没有，那么就不初始化
+		initHandlerExceptionResolvers(context);
+		// 初始化RequestToViewNameTranslator，如果没有就初始化默认的DefaultRequestToViewNameTranslator，name为viewNameTranslator
+		initRequestToViewNameTranslator(context);
+		// 初始化视图解析器，ViewResolver，如果没有就初始化默认的InternalResourceViewResolver
+		initViewResolvers(context);
+		// 初始化FlushMapManager,如果没有则使用默认的DefaultFlashMapManager
+		initFlashMapManager(context);
+	}
+	//...
+}
+```
+DispatcherServlet的初始化，其实就是初始化它所用到的九大组件：
+1. MultipartResolver：文件上传的解析器，在需要实现文件上传功能的情况下，初始化它，否则不用
+2. LocaleResolver：区域配置解析器，这个如果没有手动设置，我们需要使用默认设置，默认的配置在DispatcherServlet.properties文件中
+3. ThemeResolver：主题解析器，如果没有手动设置，我们需要使用默认值，默认的配置在DispatcherServlet.properties文件中
+4. HandlerMapping：处理器映射器，主要用于通过URI来映射找到指定的handler。
+    如果没有找到自定义的HandlerMapping，需要采用默认的，DispatcherServlet中至少要有一个HandlerMapping
+    其实整个MVC应用中也只有一个HandlerMapping实例，由这一个HandlerMapping实例来处理所有的控制器的映射
+    自动创建的HandlerMapping有两种：SimpleUrlHandlerMapping、BeanNameUrlHandlerMapping，默认的为BeanNameUrlHandlerMapping和RequestMappingHandlerMapping
+5. HandlerAdapter
+    HandlerAdapter是处理器适配器，主要用于调用找到的Handler来执行逻辑
+    如果找不到HandlerAdapter，需要使用默认的配置，DispatcherServlet中至少要有若干HandlerMapping，不能一个没有
+6. HandlerExceptionResolver：控制器执行异常解析器，可以使用@ExceptionHandler来实现自动义的异常解析器，配合@ControllerAdvice，完美
+    如果没有自定义，则需要至少有一些解析器，采用默认配置
+7. RequestToViewNameTranslator：从请求路径解析得视图名称，可以在处理器返回的View为空时使用它根据Request获取viewName。
+    需要默认值
+8. ViewResolver：视图解析器，用于解析视图，至少要有一个，如果为自定义，使用默认配置
+9. FlashMapManager：FlushMap管理器，主要用于重定向传参，如果未自定义，则使用默认配置，
+我们来看看DispatcherServlet.properties的内容：
+```properties
+# Default implementation classes for DispatcherServlet's strategy interfaces.
+# Used as fallback when no matching beans are found in the DispatcherServlet context.
+# Not meant to be customized by application developers.
 
+org.springframework.web.servlet.LocaleResolver=org.springframework.web.servlet.i18n.AcceptHeaderLocaleResolver
 
+org.springframework.web.servlet.ThemeResolver=org.springframework.web.servlet.theme.FixedThemeResolver
 
+org.springframework.web.servlet.HandlerMapping=org.springframework.web.servlet.handler.BeanNameUrlHandlerMapping,\
+	org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping
 
+org.springframework.web.servlet.HandlerAdapter=org.springframework.web.servlet.mvc.HttpRequestHandlerAdapter,\
+	org.springframework.web.servlet.mvc.SimpleControllerHandlerAdapter,\
+	org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter
 
+org.springframework.web.servlet.HandlerExceptionResolver=org.springframework.web.servlet.mvc.method.annotation.ExceptionHandlerExceptionResolver,\
+	org.springframework.web.servlet.mvc.annotation.ResponseStatusExceptionResolver,\
+	org.springframework.web.servlet.mvc.support.DefaultHandlerExceptionResolver
 
+org.springframework.web.servlet.RequestToViewNameTranslator=org.springframework.web.servlet.view.DefaultRequestToViewNameTranslator
 
+org.springframework.web.servlet.ViewResolver=org.springframework.web.servlet.view.InternalResourceViewResolver
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+org.springframework.web.servlet.FlashMapManager=org.springframework.web.servlet.support.SessionFlashMapManager
+```
 除了此处的web开发方式，还有Springboot开发方式，貌似就两种。。。下面说说Springboot启动的流程，最后统一说refresh流程。
 详见[SpringBoot基础系列-启动流程]()、[Spring基础系列-刷新容器]()
 
