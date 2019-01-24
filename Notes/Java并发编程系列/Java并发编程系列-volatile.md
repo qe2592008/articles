@@ -1,4 +1,4 @@
-# Java并发编程系列-volatile
+# Java并发编程系列-volatile关键字
 ## 一、概述
 据说，volatile是java语言中最轻量级的并发控制方式。
 

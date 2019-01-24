@@ -1,27 +1,32 @@
 # Java并发编程系列-ConcurrentHashMap 1.8
-## 概述
+## 一、概述
 ConcurrentHashMap的HashMap的线程安全版本，当我们在多线程并发环境中编程时使用ConcurrentHashMap来代替HashMap。  
+
 ConcurrentHashMap底层结构和实现原理基本与HashMap雷同，只是增加了针对并发的处理。  
+
 ConcurrentHashMap通过对桶位数组值加锁的方式来保证并发下的操作安全性。注意这里不是对桶位加锁，而是对桶位上的元素进行加锁。  
-## 基础
-### Java内存模型
-具体查看[Java基础系列-Java内存模型](https://github.com/qe2592008/articles/blob/develop/Notes/Java%E5%9F%BA%E7%A1%80%E7%B3%BB%E5%88%97/Java%E5%9F%BA%E7%A1%80%E7%B3%BB%E5%88%97-Java%E5%86%85%E5%AD%98%E6%A8%A1%E5%9E%8B.md)
-### volatile
+## 二、基础
+### 2.1 Java内存模型
+具体查看[Java并发编程系列-Java内存模型](Java并发编程系列-Java内存模型.md)
+### 2.2 volatile
 volatile可以保证内存可见性和有序性，无法保证原子性，原子性需要依靠加锁来保证。
 - 可见性：被volatile修饰的变量在被修改之后，会被立即更新到主内存中，读取volatile修饰的变量时需要直接从主内存读取，保证修改的值可见，保证线程安全。
 - 有序性：被volatile修饰的变量的读写操作会被添加内存屏障，保证不会发生重排序，从而保证线程安全。volatile写之前的操作不能重排序到volatile之后，volatile读之后的操作不能重排序到volatile读之前，volatile先写后读的不能重排序
 
 具体可查看[java并发编程系列--volatile](Java并发编程系列-volatile.md)
-### CAS操作
+### 2.3 CAS操作
 CAS操作是直接调用计算机指令来完成操作，属于原子操作。  
-具体查看[Java基础系列-CAS操作](https://github.com/qe2592008/articles/blob/develop/Notes/Java%E5%9F%BA%E7%A1%80%E7%B3%BB%E5%88%97/Java%E5%9F%BA%E7%A1%80%E7%B3%BB%E5%88%97-CAS%E6%93%8D%E4%BD%9C.md)
-### 红黑树
+
+具体查看[java并发编程系列-CAS操作](Java并发编程系列-CAS操作.md)
+### 2.4 红黑树
 红黑树是一种特制化的二叉查找树。  
-具体可查看[算法基础系列-红黑树](https://github.com/qe2592008/articles/blob/develop/Notes/%E7%AE%97%E6%B3%95%E5%9F%BA%E7%A1%80%E7%B3%BB%E5%88%97/%E7%AE%97%E6%B3%95%E5%9F%BA%E7%A1%80%E7%B3%BB%E5%88%97-%E7%BA%A2%E9%BB%91%E6%A0%91.md)
-### 二进制操作
+
+具体可查看[算法基础系列-红黑树](..\算法基础系列\算法基础系列-红黑树.md)
+### 2.5 二进制操作
 Java源码中涉及到了大量的二进制操作，总是让人云里雾里。  
-具体查看[Java基础系列-二进制操作](https://github.com/qe2592008/articles/blob/develop/Notes/Java%E5%9F%BA%E7%A1%80%E7%B3%BB%E5%88%97/Java%E5%9F%BA%E7%A1%80%E7%B3%BB%E5%88%97-%E4%BA%8C%E8%BF%9B%E5%88%B6%E6%93%8D%E4%BD%9C.md)
-## 常量变量解析
+
+具体查看[Java基础系列-二进制操作](..\Java基础系列\Java基础系列-二进制操作.md)
+## 三、常量变量解析
 ```java
 public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     implements ConcurrentMap<K,V>, Serializable {
@@ -91,9 +96,14 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     //...
 }
 ```
-## 静态块解析
-### 描述
-### 源码
+## 四、静态块解析
+### 4.1 描述
+ConcurrentHashMap里使用的大量的CAS操作，这些CAS操作就是依靠下面的静态块中的偏移量来进行的。可以说Java中CAS的基础就是这个Unsafe类了。
+
+Unsafe类是提供来Java源码开发的，主要就是J.U.C包中的各个类，其实并不对JDK的使用者开放，源码中屏蔽了除BootStrapClassLoader之外的任何类加载来加载这个类。
+
+虽然如此，但通过反射的方式，你还是可以使用的，不过正如其名，不安全，如果你没有完全摸透这个类的所有内容，请谨慎使用。
+### 4.2 源码
 ```java
 public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     implements ConcurrentMap<K,V>, Serializable {
@@ -133,13 +143,16 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     //...
 }
 ```
-## 构造器解析
-### 构造器描述
+## 五、构造器解析
+### 5.1 构造器描述
 无参构造器初始容量采用默认的初始容量16，负载因子为默认的0.75，一旦使用带参数的构造器自定义了容量或负载因子、并发级别等参数，那么就会根据给定的值进行内部换算，得出最优的初始容量值。  
+
 集合的实际初始容量和参数指定的容量一般不同，而是根据一定的规则计算出来的。有两种计算方法，分别对应2号和5号构造器中的算法。  
+
 2号构造器中计算方法类似HashMap中方式，只是在进行二进制转换(调用tableSizeFor方法)之前还需要经过一些基础计算：给定容量*1.5+1。  
+
 5号构造器中计算方法也类似HashMap,同样需要在进行二进制转换之前进行一些计算：给定容量/负载因子+1  
-### 源码解析
+### 5.2 源码解析
 ```java
 public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     implements ConcurrentMap<K,V>, Serializable {
@@ -186,11 +199,19 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     //...
 }
 ```
-## 功能解析
-### 添加元素操作
-#### 功能描述
-ConcurrentHashMap添加新元素与HashMap添加新元素的整体流程是相似的，只是多了针对多线程的处理，同时在hash算法上也做了修改
-#### 源码解析
+## 六、功能解析
+### 6.1 添加元素操作
+#### 6.1.1 功能描述
+ConcurrentHashMap添加新元素与HashMap添加新元素的整体流程是相似的，只是多了针对多线程的处理，同时在hash算法上也做了修改。
+
+首先看看hash方法：
+    hash方法中“(h ^ (h >>> 16)) & HASH_BITS”的意思是将给定元素键的hashCode方法的结果h值的高低16位异或，这一部分和HashMap中的方式是完全一致的（“(h = key.hashCode()) ^ (h >>> 16)”），只是在ConcurrentHashMap中最后又与HASH_BITS相与。
+    HASH_BITS是什么？它是一个静态常量，值为0x7fffffff，二进制表示为一个首位为0，其余皆为1，长度为64位的二进制数，基于1的与操作具有保留原值的效果，这里h为int类型，只有32位，而HASH_BITS末32位全是1，其结果就是保留原样。
+再就是关于辅助迁移的逻辑了，当计算的的定位hash表示的数组桶位的已有节点为ForwardingNode节点（它是一个临时节点，表示的是完成迁移的桶数组位节点）则停止添加操作，先参与辅助迁移。
+这里不得不说ConcurrentHashMap设计的好了，当正在执行扩容-数据迁移的时候，必然存在已迁移完成的数组桶位，正在迁移的数组桶位，未迁移的数组桶位；ConcurrentHashMap会将所有已迁移完成的数组桶位（包括那些没有任何元素的数组桶位）置为ForwardingNode节点，其hash为-1，代表这个桶位完成了迁移，这代表什么呢？这代表这个桶位不能再存储元素了，要往这个桶位添加元素，一个是进行辅助迁移，完成后在新数组添加元素，否则就是等待扩容完毕，在新数组添加元素。
+那么另一方面来说，未被置为ForwardingNode节点的桶位就是尚未执行迁移的桶位了，这些桶位还是能够在扩容期间存储元素的，这些新存储的元素会在当前桶位元素被迁移的时候，迁移到新数组。
+这里就涉及到多线程问题了，如果一个线程正在扩容一个桶位，那么就是尚未置为ForwardingNode节点，这时候来了新增元素的线程，
+#### 6.1.2 源码解析
 ```java
 public class ConcurrentHashMap<K,V> extends AbstractMap<K,V> implements ConcurrentMap<K,V>, Serializable {
     //...
@@ -483,7 +504,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
                     if ((sc >>> RESIZE_STAMP_SHIFT) != rs || sc == rs + 1 ||
                         sc == rs + MAX_RESIZERS || (nt = nextTable) == null ||
                         transferIndex <= 0)
-                        // 这种情况是在不存在扩容区间的情况下，不再让新线程加入扩容行列，直接中断
+                        // 这种情况是在不存在扩容区间的情况下，不再让新线程加入扩容行列，直接中断循环，逻辑将跳回到调用方
                         break;
                     // sizeCtl+1表示增加一个扩容线程，这里调用transfer时必然存在nexttable
                     if (U.compareAndSwapInt(this, SIZECTL, sc, sc + 1))
@@ -597,6 +618,19 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
                 // 如果当前节点是ForwardingNode节点，则说明该节点数据已迁移完毕，不再进行处理，跳过。
                 advance = true; // already processed（已处理）
             else {
+                // 这里加锁的目的是为了避免添加元素的操作和迁移元素的操作产生多线程问题，
+                // 当迁移完毕之后，会直接将当前桶位置为ForwardingNode节点，而在添加元素
+                // 的地方也会加锁，那么就看谁能抢到这把锁了，如果添加元素的线程抢到了锁，
+                // 那么就会先进行元素添加操作，完成之后释放锁，这里的迁移线程才能获取锁进
+                // 行元素迁移，但如果是迁移线程先获取了锁，那么就会先进行元素迁移，添加元
+                // 素的线程会阻塞，当迁移结束，桶位节点变化，之前的添加元素的线程就会获取锁，
+                // 并通过双重校验机制得知桶位元素已发生了变化，随即结束添加操作，循环开始，
+                // 这一次代码走到判断桶位是否ForwardingNode节点的位置，成功，则当前线程去
+                // 辅助迁移了，当迁移完成之后，会返回新的桶数组tab，这时，再次循环的时候，
+                // 就会将元素添加到新的数组上去了，那会不会有可能在添加到新数组的时候出现多
+                // 线程问题呢，比如这时候正在往这个桶位迁移元素。基于元素迁移的逻辑，这种情
+                // 况是不存在的，一旦一个桶位元素迁移完毕，那么新数组对应桶位和桶位+旧数组容
+                // 量指向的桶位就迁移完毕了，不会再迁移新的元素进来。这时可以放心的添加新元素了。
                 synchronized (f) {
                     if (tabAt(tab, i) == f) {
                         Node<K,V> ln, hn;
@@ -710,11 +744,13 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
             int rs = resizeStamp(tab.length);
             while (nextTab == nextTable && table == tab &&
                    (sc = sizeCtl) < 0) {
+                // 如果区间分配完毕，或者迁移完毕，则直接中断，返回原逻辑执行
                 if ((sc >>> RESIZE_STAMP_SHIFT) != rs || sc == rs + 1 ||
                     sc == rs + MAX_RESIZERS || transferIndex <= 0)
                     break;
                 // sizeCtl值原子加1，表示执行扩容的线程由多了一个，
                 // 那么sizeCtl在线程扩容期间表示的就是执行扩容的线程的数量
+                // 扩容操作结束中断循环，
                 if (U.compareAndSwapInt(this, SIZECTL, sc, sc + 1)) {
                     transfer(tab, nextTab);
                     break;

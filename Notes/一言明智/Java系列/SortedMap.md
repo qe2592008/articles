@@ -1,0 +1,5 @@
+SortedMap可以通过作为key的类型的实现了Comparable接口的compareTo方法确定的排序规则或者是在创建集合时提供的Comparator比较器提供的排序规则实现key的排序。
+
+SortedMap可以实现key的排序，方式如下：
+- key的类型实现了Comparable接口
+- 创建集合时提供了Comparator参数

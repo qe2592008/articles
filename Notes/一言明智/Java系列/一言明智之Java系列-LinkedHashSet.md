@@ -1,0 +1,6 @@
+LinkedHashSet是依靠LinkedHashMap实现的。
+它们的关系和HashSet与HashMap的关系，TreeSet和TreeMap的关系一样。
+
+LinkedHashSet继承了HashSet,HashSet依赖于HashMap。
+
+LinkedHashSet中甚至直接用的就是HashSet中继承过来的增删改查元素的方法。

@@ -128,7 +128,8 @@ public final class Integer extends Number implements Comparable<Integer> {
 - utf-8编码中的中文占几个字节；int型几个字节？
     utf-8中文占3个字节，int型占4个字节
 - 静态代理和动态代理的区别，什么场景使用？
-    
+    静态代理：手动编写代理类，适用于数量少，目标确定的情况下，
+    动态代理：通过反射自动在运行时动态生成代理类，适用于数量大，目标不确定的情况下 
 - Java的异常体系
     Throwable-Exception和Error
     Exception-受检异常，运行时异常
@@ -137,6 +138,7 @@ public final class Integer extends Number implements Comparable<Integer> {
 - 修改对象A的equals方法的签名，那么使用HashMap存放这个对象实例的时候，会调用哪个equals方法？
     重写了equals方法之后，调用的是新的equals，一般情况下，在重写equals方法时，会同时重写hashCode方法。
 - Java中实现多态的机制是什么？
+    
 - 如何将一个Java对象序列化到文件里？
     使用FileOutputStream，ObjectOutputStream
 - 说说你对Java反射的理解
@@ -152,7 +154,10 @@ public final class Integer extends Number implements Comparable<Integer> {
     
 ### （三） 数据结构
 常用数据结构简介
+    列表（栈、队列）、hash、树、图等
 并发集合了解哪些？
+    ConcurrentHashMap
+    
 列举java的集合以及集合之间的继承关系
 集合类以及集合框架
 容器类介绍以及之间的区别（容器类估计很多人没听这个词，Java容器主要可以划分为4个部分：List列表、Set集合、Map映射、工具类（Iterator迭代器、Enumeration枚举类、Arrays和Collections），具体的可以看看这篇博文 Java容器类）

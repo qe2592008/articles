@@ -1,0 +1,7 @@
+Eureka是SpringCloud旗下的服务中心软件，一般用作SpringCloud下的微服务的服务注册中心。
+
+Eureka一般采用集群部署，多个Eureka服务之间平级存在，不需要选举之类的行为，如果某一台宕掉，直接调用可用的服务即可。
+
+可见Eureka提供了很高的可用性，他满足AP，即可用性和分区容错性。
+
+区别于Zookeeper

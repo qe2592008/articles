@@ -160,7 +160,6 @@ public interface UsersRepository extends JpaSpecificationExecutor<User>, JpaRepo
 ```
 
 #### 第二步：使用Specification
-
 ##### 用法解析
 首先看Specification接口，在其中只有一个抽象方法，所以它就是一个函数式接口，另外还定义了两个静态方法，两个默认方法：我们来看看源码：
 
@@ -252,7 +251,7 @@ public class UserRepository {
 如何，是不是大大的简化的代码量呢？
 
 我们有必要讲解下Specification的原理
-##### Specification解析
+##### Specification原理
 Specification是一个函数式接口，源码如下：
 ```java
 public interface Specification<T> extends Serializable {
@@ -370,6 +369,20 @@ public class SimpleJpaRepository<T, ID> implements JpaRepositoryImplementation<T
  ```
 ##### Specification复杂应用
 ###### 多表联表查询
+###### In查询
+根据给定的用户ID串，来获取对应的用户列表
+```java
+@Repository
+public class UserRepository {
+    public ResponseEntity<List<User>> getUserList(final String ids){
+        return ResponseEntity.ok(usersRepository.findAll((root, query, cb) -> {
+            Predicate p = root.get("id").in(Arrays.asList(ids.split(",")));
+            query.where(p1).orderBy(cb.asc(root.get("createTime")));
+            return null;
+        }));
+    }
+}
+```
 
 
 ### 分页查询
