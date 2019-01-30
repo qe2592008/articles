@@ -2,7 +2,9 @@
 ## 自定义方式
 ### 第一种：classpath路径下添加banner.txt文件
 banner.txt文件中有要展示的内容，我们可以使用占位符变量：
+
 |序号|变量|说明|
+|---|----|----|
 |1|${application.version}|应用版本|
 |2|${applicaiton.formatted-version}|格式化应用版本|
 |3|${spring-boot.version}|springboot版本|

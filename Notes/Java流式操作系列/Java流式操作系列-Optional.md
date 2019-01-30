@@ -153,9 +153,26 @@ Exception in thread "main" java.lang.RuntimeException
 	at com.dh.stream.OptionalTest.orElseTest(OptionalTest.java:29)
 	at com.dh.stream.OptionalTest.main(OptionalTest.java:17)
 ```
-## 三、总结
+## 三、使用方式
+Optional使用时不能直接get，这时会走进老路，get的时候可能为null，就会抛出异常，这时候你就会想要在get之前进行isPresent判断，这个不使用Optional又有什么区别的。
+
+我们使用Optional就是为了简化null判断，所以拒绝使用get方法，Optional提供了正确使用的方法是：orElse、orElseGet、orElseThrow三个方法。
+
+使用orElse方法，我们可以从非空的Optional中获取到值，如果是空的Optional，可以返回orElse方法参数指定的默认值。
+
+使用orElseGet方法，我们可以在空的Optional的情况下主动构建一个默认返回结果。
+
+orElseThrow方法，在空Optional的情况下会抛出一个指定的异常。
+## 四、总结
 说了这么多，最终是为了在开发中使用Optional，正如开始时说的，我们要明确Optional规避的是那种null，不能在所有的地方都使用它。
 
 当项目的业务规则下某个对象可能为null（就是业务允许的null），这种情况下，出现null是正常现象，这种情况需要规避，我们使用Optional封装目标对象，保证不会存在null调用抛出空指针。
 
 但是如果在业务规则下某个对象不可能为null（就是业务不允许为null），这种情况下，出现null就是程序出错了，并不是正常现象，这种时候我们不能用Optional去封装目标对象来规避问题，而是要直接使用，一旦出错就可以及时的排查问题，不至于被Optional将问题给隐藏掉。
+## 五、扩展
+Java在提供Optional的基础上还额外提供了三个专用的Optional:
+- OptionalInt
+- OptionalLong
+- OptionalDouble
+
+这三个类是专业性扩展，OptionalInt内部只能封装Integer类型的值和null，OptionalLong内部只能封装Long类型的值和null，OptionalDouble内部只能封装Double类型的值和null。

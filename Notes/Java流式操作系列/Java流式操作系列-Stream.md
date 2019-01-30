@@ -610,20 +610,8 @@ public class StreamTest {
 ```text
 asdaa
 ```
-## 五、其他类
-### 5.1 IntStream
-
-### 5.2 LongStream
-
-### 5.3 DoubleStream
-
-### 5.4 BinaryOperator
-
-### 5.5 Collector
-
-### 5.6 Collectors
-
-### 5.7 StreamSupport
+## 五、总结
+流式操作代码描述性强，易理解，而且功能强大，可以简化很多集合操作。在我们需要对集合数据进行处理的时候，不妨试试使用流式操作来实现。
 
 参考：
 - [Java 8 中的 Streams API 详解](https://www.ibm.com/developerworks/cn/java/j-lo-java8streamapi/index.html)
