@@ -93,7 +93,7 @@ public class RestTemplateConfig {
 
 }
 ```
-#### 2.2.2 请求拦截器
+#### 2.2.2 请求拦截器：ClientHttpRequestInterceptor
 请求拦截器的功能是可以在请求到达服务器之前，拦截住进行一些处理，比如统一添加一些header信息等，操作完成之后，需要恢复请求流程。
 
 数据转换器的作用是对请求响应中的数据与Java对象之间进行转换。
@@ -131,7 +131,7 @@ public class MyHttpRequestInterceptor implements ClientHttpRequestInterceptor {
 }
 ```
 推荐使用Lambda表达式方式。
-#### 2.2.3 请求工厂
+#### 2.2.3 请求工厂：ClientHttpRequestFactory
 请求工厂就是ClientHttpRequestFactory，主要用于生成ClientHttpRequest请求实例。
 
 ClientHttpRequest代表的是一个客户端请求，其中有一个方法execute，用于执行请求，并返回一个ClientHttpResponse响应实例。
@@ -142,12 +142,81 @@ public interface ClientHttpRequest extends HttpRequest, HttpOutputMessage {
 ```
 ClientHttpRequestFactory主要有两个实现类，分别采用不同的底层技术来实现Http请求：
 - SimpleClientHttpRequestFactory：基于JDK的URLConnection来实现Http连接
+```java
+@Configuration
+public class RestTemplateConfig {
+    @Autowired
+    private RestTemplateBuilder restTemplateBuilder;
+    @Bean
+    public RestTemplate restTemplate() {
+        return restTemplateBuilder
+                .requestFactory(()->{
+                    SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+                    factory.setProxy();// 用于设置代理
+                    factory.setTaskExecutor();// 用于配置异步任务执行器，只有在执行了createAsyncRequest方法后才需要配置此项
+                    factory.setOutputStreaming(false);// 是否使用输出流，默认为true
+                    factory.setChunkSize(10000);// 当bufferRequestBody置为false时可以设置此值，表示每次写的数据块的大小
+                    factory.setBufferRequestBody(false);// 配置是否缓存请求body，默认为true，当数据量大时推荐置为false
+                    factory.setConnectTimeout(1000);// 配置网络连接超时时间
+                    factory.setReadTimeout(3000);// 配置数据读取超时时间
+                    return factory;
+                })
+                .build();
+    }
+}
+```
 - HttpComponentsClientHttpRequestFactory：基于Apache的HttpClient来实现Http连接
-
+```java
+@Configuration
+public class RestTemplateConfig {
+    @Autowired
+    private RestTemplateBuilder restTemplateBuilder;
+    @Bean
+    public RestTemplate restTemplate() {
+        return restTemplateBuilder
+                .requestFactory(()->{
+                    HttpComponentsClientHttpRequestFactory factory = new HttpComponentsClientHttpRequestFactory();
+                    HttpClient httpClient = new DefaultHttpClient();
+                    factory.setHttpClient(httpClient);// 配置底层使用的HTTPClient
+                    factory.setBufferRequestBody(false);//  配置是否缓存请求body，默认为true，当数据量大时推荐置为false
+                    factory.setConnectionRequestTimeout(10000);// 配置从连接管理器获取连接的超时时间
+                    factory.setConnectTimeout(3000);// 配置网络连接超时时间
+                    factory.setReadTimeout(1000);// 配置数据读取超时时间
+                    return factory;
+                })
+                .build();
+    }
+}
+```
 在这里设置请求工厂的目的主要也就是设置采用哪种底层机制来创建Http连接。
-#### 2.2.4 定制器
+#### 2.2.4 RestTemplate定制器：RestTemplateCustomizer
+RestTemplateCustomizer是一个函数式接口，只有一个customize方法，以一个RestTemplate为参数，无返回值，那么它的作用就是针对这个RestTemplate进行自定义。
 
-#### 2.2.5 错误处理器
+RestTemplate有两类型定时器设置方式：
+- additionalCustomizers：使用这个方式，新设置的内容会追加到原设置之后
+- customizers：采用此种方式，新设置的定制器内容会覆盖原有的设置
+```java
+@Configuration
+public class RestTemplateConfig {
+    @Autowired
+    private RestTemplateBuilder restTemplateBuilder;
+    @Bean
+    public RestTemplate restTemplate() {
+        return restTemplateBuilder
+                .additionalCustomizers(restTemplate -> {
+                    restTemplate.getMessageConverters().add(MyMessageConverter.create());
+                    restTemplate.getInterceptors().add(MyHttpRequestInterceptor.create());
+                })
+                .customizers(restTemplate -> {
+                    restTemplate.getMessageConverters().add(MyMessageConverter.create());
+                    restTemplate.getInterceptors().add(MyHttpRequestInterceptor.create());
+                })
+                .build();
+    }
+}
+```
+#### 2.2.5 错误处理器：ResponseErrorHandler
+RestTemplate中默认使用的错误处理器是DefaultResponseErrorHandler，
 
 #### 2.2.6 超时时间
 

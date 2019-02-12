@@ -1,9 +1,9 @@
 # SpringBoot高级系列-SpringCache使用
-## 概述
+## 一、概述
 SpringCache本身是一个缓存体系的抽象实现，并没有具体的缓存能力，要使用SpringCache还需要配合具体的缓存实现来完成。
 
 虽然如此，但是SpringCache是所有Spring支持的缓存结构的基础，而且所有的缓存的使用最后都要归结于SpringCache，那么一来，要想使用SpringCache，还是要仔细研究一下的。
-## 缓存注解
+## 二、缓存注解
 SpringCache缓存功能的实现是依靠下面的这几个注解完成的。
 - @EnableCaching：开启缓存功能
 - @Cacheable：定义缓存，用于触发缓存
@@ -11,7 +11,7 @@ SpringCache缓存功能的实现是依靠下面的这几个注解完成的。
 - @CacheEvict：定义清除缓存，触发缓存清除
 - @Caching：组合定义多种缓存功能
 - @CacheConfig：定义公共设置，位于class之上
-### @EnableCaching
+### 2.1 @EnableCaching
 该注解主要用于开启基于注解的缓存功能,使用方式为：
 ```java
 @EnableCaching
@@ -71,11 +71,11 @@ public interface Ordered {
 }
 ```
 由上面的源码可以看出，缓存功能是依靠AOP来实现的。
-### @Cacheable
+### 2.2 @Cacheable
 该注解用于标注于方法之上用于标识该方法的返回结果需要被缓存起来，标注于类之上标识该类中所有方法均需要将结果缓存起来。
 
 该注解标注的方法每次被调用前都会触发缓存校验，校验指定参数的缓存是否已存在（已发生过相同参数的调用），若存在，直接返回缓存结果，否则执行方法内容，最后将方法执行结果保存到缓存中。
-#### 使用
+#### 2.2.1 使用
 ```java
 @Service
 @Log4j2
@@ -155,7 +155,7 @@ public class AnimalKeyGenerator implements KeyGenerator {
     }
 }
 ```
-### @CachePut
+### 2.3 @CachePut
 该注解用于更新缓存，无论结果是否已经缓存，都会在方法执行结束插入缓存，相当于更新缓存。一般用于更新方法之上。
 ```java
 @Service
@@ -206,7 +206,7 @@ public @interface CachePut {
 }
 ```
 只有一点要注意：这里的设置一定要和执行缓存保存的方法的@Cacheable的设置一致，否则无法准确更新。
-### @CacheEvict
+### 2.4 @CacheEvict
 该注解主要用于删除缓存操作。
 ```java
 @Service
@@ -251,7 +251,7 @@ public @interface CacheEvict {
 	boolean beforeInvocation() default false;
 }
 ```
-### @Caching
+### 2.5 @Caching
 这个注解用于组个多个缓存操作，包括针对不用缓存名称的相同操作等，源码：
 ```java
 @Target({ElementType.METHOD, ElementType.TYPE})
@@ -294,7 +294,7 @@ public class AnimalService {
     //...
 }
 ```
-### @CacheConfig
+### 2.6 @CacheConfig
 该注解标注于类之上，用于进行一些公共的缓存相关配置。源码为：
 ```java
 @Target(ElementType.TYPE)
