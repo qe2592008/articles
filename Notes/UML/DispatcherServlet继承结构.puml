@@ -7,10 +7,10 @@ abstract class HttpServletBean
 abstract class FrameworkServlet
 class DispatcherServlet
 
-GenericServlet -> Servlet
-GenericServlet -> ServletConfig
-HttpServlet -> GenericServlet
-HttpServletBean -> HttpServlet
-FrameworkServlet -> HttpServletBean
-DispatcherServlet -> FrameworkServlet
+GenericServlet -up..> Servlet
+GenericServlet -up..> ServletConfig
+HttpServlet -up-|> GenericServlet
+HttpServletBean -up-|> HttpServlet
+FrameworkServlet -up-|> HttpServletBean
+DispatcherServlet -up-|> FrameworkServlet
 @enduml

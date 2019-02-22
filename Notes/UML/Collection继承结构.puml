@@ -1,0 +1,114 @@
+@startuml
+interface Iterable
+interface Collection
+interface Set
+interface SortedSet
+interface NavigableSet
+interface List
+interface Queue
+interface Deque
+interface BlockingQueue
+interface BlockingDeque
+interface TransferQueue
+
+abstract class AbstractCollection
+abstract class AbstractSet
+abstract class EnumSet
+abstract class AbstractList
+abstract class AbstractSequentialList
+abstract class AbstractQueue
+
+
+class JumboEnumSet
+class RegularEnumSet
+class UnmodifiableListSet
+class HashSet
+class TreeSet
+class LinkedHashSet
+class ConcurrentSkipListSet
+class CopyOnWriteArraySet
+
+class ArrayList
+class Vector
+class Stack
+class LinkedList
+class CopyOnWriteArrayList
+
+
+class LinkedBlockingQueue
+class LinkedBlockingDeque
+class ArrayDeque
+class ConcurrentLinkedDeque
+class ConcurrentLinkedQueue
+class ArrayBlockingQueue
+class LinkedTransferQueue
+class SynchronousQueue
+class DelayQueue
+class PriorityQueue
+class PriorityBlockingQueue
+
+Collection -up-|> Iterable
+Set -up-|> Collection
+List -up-|> Collection
+Queue -up-|> Collection
+AbstractCollection -up-|> Collection
+AbstractSet -up-|> AbstractCollection
+AbstractSet -up..|> Set
+SortedSet -up-|> Set
+NavigableSet -up-|> SortedSet
+EnumSet -up-|> AbstractSet
+JumboEnumSet -up-|> EnumSet
+RegularEnumSet -up-|> EnumSet
+UnmodifiableListSet -up-|> AbstractSet
+HashSet -up-|> AbstractSet
+HashSet -up..|> Set
+TreeSet -up-|> AbstractSet
+TreeSet -up..|> NavigableSet
+LinkedHashSet -up-|> HashSet
+LinkedHashSet -up..|> Set
+ConcurrentSkipListSet -up-|> AbstractSet
+ConcurrentSkipListSet -up..|> NavigableSet
+CopyOnWriteArraySet -up-|> AbstractSet
+
+AbstractList -up-|> AbstractCollection
+AbstractList -up..|> List
+AbstractSequentialList -up-|> AbstractList
+ArrayList -up-|> AbstractList
+ArrayList -up..|> List
+Vector -up-|> AbstractList
+Vector -up..|> List
+Stack -up-|> Vector
+LinkedList -up-|> AbstractSequentialList
+LinkedList -up..|> List
+LinkedList -up..|> Deque
+CopyOnWriteArrayList -up..|> List
+
+Deque -up-|> Queue
+BlockingQueue -up-|> Queue
+BlockingDeque -up-|> BlockingQueue
+BlockingDeque -up-|> Deque
+TransferQueue -up-|> BlockingQueue
+AbstractQueue -up..> Queue
+AbstractQueue -up-|> AbstractCollection
+LinkedBlockingQueue -up-|> AbstractQueue
+LinkedBlockingQueue -up..> BlockingQueue
+LinkedBlockingDeque -up-|> AbstractQueue
+LinkedBlockingDeque -up..> BlockingDeque
+ArrayDeque -up-|> AbstractCollection
+ArrayDeque -up..> Deque
+ConcurrentLinkedDeque -up-|> AbstractCollection
+ConcurrentLinkedDeque -up..> Deque
+ConcurrentLinkedQueue -up-|> AbstractQueue
+ConcurrentLinkedQueue -up..> Queue
+ArrayBlockingQueue -up-|> AbstractQueue
+ArrayBlockingQueue -up..> BlockingQueue
+LinkedTransferQueue -up-|> AbstractQueue
+LinkedTransferQueue -up..> TransferQueue
+SynchronousQueue -up-|> AbstractQueue
+SynchronousQueue -up..> BlockingQueue
+DelayQueue -up-|> AbstractQueue
+DelayQueue -up..> BlockingQueue
+PriorityQueue -up-|> AbstractQueue
+PriorityBlockingQueue -up-|> AbstractQueue
+PriorityBlockingQueue -up..> BlockingQueue
+@enduml

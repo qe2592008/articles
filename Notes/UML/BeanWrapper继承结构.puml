@@ -12,16 +12,16 @@ interface BeanWrapper
 class BeanWrapperImpl
 
 
-ConfigurablePropertyAccessor -> PropertyAccessor
-ConfigurablePropertyAccessor ->PropertyEditorRegistry
-ConfigurablePropertyAccessor -> TypeConverter
-PropertyEditorRegistrySupport -> PropertyEditorRegistry
-TypeConverterSupport -> TypeConverter
-TypeConverterSupport -> PropertyEditorRegistrySupport
-AbstractPropertyAccessor -> TypeConverterSupport
-AbstractPropertyAccessor -> ConfigurablePropertyAccessor
-AbstractNestablePropertyAccessor -> AbstractPropertyAccessor
-BeanWrapper -> ConfigurablePropertyAccessor
-BeanWrapperImpl -> AbstractNestablePropertyAccessor
-BeanWrapperImpl -> BeanWrapper
+ConfigurablePropertyAccessor -up..> PropertyAccessor
+ConfigurablePropertyAccessor -up..> PropertyEditorRegistry
+ConfigurablePropertyAccessor -up..> TypeConverter
+PropertyEditorRegistrySupport -up..> PropertyEditorRegistry
+TypeConverterSupport -up..> TypeConverter
+TypeConverterSupport -up-|> PropertyEditorRegistrySupport
+AbstractPropertyAccessor -up-|> TypeConverterSupport
+AbstractPropertyAccessor -up..> ConfigurablePropertyAccessor
+AbstractNestablePropertyAccessor -up-|> AbstractPropertyAccessor
+BeanWrapper -up-|> ConfigurablePropertyAccessor
+BeanWrapperImpl -up-|> AbstractNestablePropertyAccessor
+BeanWrapperImpl -up..> BeanWrapper
 @enduml
