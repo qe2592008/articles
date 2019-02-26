@@ -1,0 +1,54 @@
+@startuml
+interface AutoCloseable
+interface Closeable
+interface Flushable
+abstract class InputStream
+abstract class OutputStream
+class ObjectInputStream
+class ByteArrayInputStream
+class PipedInputStream
+class StringBufferInputStream
+class FilterInputStream
+class SequenceInputStream
+class FileInputStream
+class DataInputStream
+class BufferedInputStream
+class PushbackInputStream
+class LineNumberInputStream
+class ObjectOutputStream
+class ByteArrayOutputStream
+class FileOutputStream
+class FilterOutputStream
+class PipedOutputStream
+class BufferedOutputStream
+class DataOutputStream
+class PrintStream
+
+
+Closeable -up-|> AutoCloseable
+InputStream -up..> Closeable
+OutputStream -up..> Closeable
+OutputStream -up..> Flushable
+ObjectInputStream -up-|> InputStream
+ByteArrayInputStream -up-|> InputStream
+PipedInputStream -up-|> InputStream
+StringBufferInputStream -up-|> InputStream
+FilterInputStream -up-|> InputStream
+SequenceInputStream -up-|> InputStream
+FileInputStream -up-|> InputStream
+DataInputStream -up-|> FilterInputStream
+BufferedInputStream -up-|> FilterInputStream
+PushbackInputStream -up-|> FilterInputStream
+LineNumberInputStream -up-|> FilterInputStream
+ByteArrayOutputStream -up-|> OutputStream
+ObjectOutputStream -up-|> OutputStream
+FileOutputStream -up-|> OutputStream
+FilterOutputStream -up-|> OutputStream
+PipedOutputStream -up-|> OutputStream
+BufferedOutputStream -up-|> FilterOutputStream
+DataOutputStream -up-|> FilterOutputStream
+PrintStream -up-|> FilterOutputStream
+
+
+
+@enduml
