@@ -383,8 +383,22 @@ public class UserRepository {
     }
 }
 ```
+### Auditing
+Auditing表示审计功能，主要目的是自动插入创建时间创建人员，修改时间和修改人员。
 
-
+涉及注解：
+- @CreatedDate：标识创建时间字段，insert操作时插入
+- @CreatedBy：标识创建人员字段，insert操作时插入
+- @LastModifiedDate：标识修改时间字段，update更自动插入
+- @LastModifiedBy：标识修改人员字段，update更自动插入
+- @EnableJpaAuditing：启动审计功能，标注于启动类或者配置类
+- @EntityListeners(AuditingEntityListener.class)：标注于目标类上，表示
+- @MappedSuperclass：标注于公共类上，表示这是超类
+实现方式：
+1. 创建一个公共超类来统一为所有的实体类定义创建和修改的时间与人员字段，实体类均应该继承该超类。
+2. 在超类上添加注解@MappedSuperclass和@EntityListeners(AuditingEntityListener.class)。
+3. 在超类中定义四个字段和各自的get和set方法，并添加对应的注解。
+4. 在启动类上添加@EnableJpaAuditing注解用于启动审计功能
 ### 分页查询
     使用Pageable来实现分页，需要传递页码和页距两个参数，分页查询的方式在之前的复杂查询里面已经罗列过了，这里不再赘述。
 ### 排序
