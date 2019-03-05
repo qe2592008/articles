@@ -1,8 +1,8 @@
 # Java集合系列-HashSet
-## 概述
+## 一、概述
 HashSet是基于哈希实现的set集合，其实它底层是一个value固定的HashMap。
 HashMap是无序存储的，所以HashSet也一样是无序的，而且HashSet允许null值，但只能拥有一个null值，即不允许存储相同的元素。
-## 常量变量
+## 二、常量变量
 ```java
 public class HashSet<E> extends AbstractSet<E>
     implements Set<E>, Cloneable, java.io.Serializable
@@ -15,7 +15,7 @@ public class HashSet<E> extends AbstractSet<E>
 ```
 上面的map即为HashSet底层的HashMap，针对HashSet的操作，全部转交给这个map来完成。
 上面的PRESENT即为底层HashMap中键值对的值的固定值。应为在HashSet中只关注键。
-## 构造器
+## 三、构造器
 ```java
 public class HashSet<E> extends AbstractSet<E>
     implements Set<E>, Cloneable, java.io.Serializable{
@@ -41,7 +41,7 @@ public class HashSet<E> extends AbstractSet<E>
 ```
 很明显，所有的HashSet的构造器最终都在创建底层的HashMap。
 最后一个构造器创建了一个LinkedHashMap实例，其实它也是一个HashMap，因为它继承自HashMap，是对HashMap的一个功能扩展集合，它支持多种顺序的遍历（插入顺序和访问顺序）。
-## 操作
+## 四、操作
 ```java
 public class HashSet<E> extends AbstractSet<E>
     implements Set<E>, Cloneable, java.io.Serializable{
@@ -71,8 +71,8 @@ public class HashSet<E> extends AbstractSet<E>
 }
 ```
 上面的所有基础操作，全部已开HashMap的对应方法来完成。
-## 序列化操作
-### 序列化
+## 五、序列化操作
+### 5.1 序列化
 HashSet实例的序列化执行时，并不会序列化map属性，因为其被transient关键字所修饰。参照源码：
 ```java
 // 在执行序列化操作的时候会执行这个writeObject方法
@@ -102,7 +102,7 @@ public class HashSet<E> extends AbstractSet<E>
     //...
 }
 ```
-### 反序列化
+### 5.2 反序列化
 ```java
 // 在执行反序列化操作的时候会执行这个readObject方法
 public class HashSet<E> extends AbstractSet<E>
@@ -163,5 +163,5 @@ public class HashSet<E> extends AbstractSet<E>
     //...
 }
 ```
-## 总结
+## 六、总结
 HashSet就是依靠HashMap实现的。
