@@ -1,0 +1,18 @@
+@startuml
+
+interface Executor
+interface ExecutorService
+interface ScheduledExecutorService
+abstract class AbstractExecutorService
+class ThreadPoolExecutor
+class ScheduledThreadPoolExecutor
+class ForkJoinPool
+
+ForkJoinPool -up-|> AbstractExecutorService
+ScheduledThreadPoolExecutor -up-|> ThreadPoolExecutor
+ScheduledThreadPoolExecutor -up..> ScheduledExecutorService
+ThreadPoolExecutor -up-|> AbstractExecutorService
+AbstractExecutorService -up..> ExecutorService
+ScheduledExecutorService -up-|> ExecutorService
+ExecutorService -up-|> Executor
+@enduml
