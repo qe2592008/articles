@@ -3,7 +3,7 @@
 ## 一、概述
 AbstractQueuedSynchronizer简称为AQS，是并发包中用于实现并发工具的基础类，非常明显，它是一个抽象类。
 
-它提供了一个依赖于FIFO等待队列的框架用于实现各种阻塞锁与同步器。
+它提供了一个依赖于FIFO队列的框架用于实现各种阻塞锁与同步器。
 
 它依赖于一个int值来表示状态，并定义了获取和修改该状态值的原子方法，具体的同步器需要实现该抽象类，并且使用它定义的这些原子方法来操作状态值。
 
@@ -52,7 +52,7 @@ static final class Node {
     static final Node SHARED = new Node();// 共享模式的节点标记
     static final Node EXCLUSIVE = null;// 独享模式的节点标记
     // 四个节点状态，其实还有一个状态为0-表示当前节点在同步队列中，等待着获取锁
-    static final int CANCELLED =  1;// 表示当前节点封装的线程被取消
+    static final int CANCELLED =  1;// 表示当前节点封装的线程被中断或者超时
     static final int SIGNAL    = -1;// 表示当前节点的后继节点需要被唤醒（unpark）
     static final int CONDITION = -2;// 表示当前节点位于等待队列中，在等待条件满足
     static final int PROPAGATE = -3;// 表示当前场景下后续的acquireShared能够得以执行？？
@@ -172,10 +172,8 @@ public class ConditionObject implements Condition, java.io.Serializable {
 ```
 > 我们可以看到类的五个字段中除了三个静态字段之外，剩下的两个被transient修饰，也就是说虽然该类支持序列化，但是序列化无值。
 ##### (3)方法
-
 ConditionObject中的公共方法其实就是对Condition接口中定义方法的实现，下面我们逐个分析：
-
-> await()：
+> **await()**：
 > ```java
 > public class ConditionObject implements Condition, java.io.Serializable {
 >     public final void await() throws InterruptedException {
@@ -234,6 +232,28 @@ ConditionObject中的公共方法其实就是对Condition接口中定义方法�
 > > 这个方法里面除了封装节点和添加节点之外，还有针对等待队列进行清理的流程，主要是为了清理被取消的线程节点
 > 
 > - 第三步：调用fullyRelease(node)方法，用于释放当前线程所持有的锁并唤醒同步队列的下一节点，详情可见AQS方法解析部分；
+> ```java
+> public abstract class AbstractQueuedSynchronizer
+>     extends AbstractOwnableSynchronizer
+>     implements java.io.Serializable {
+>     final int fullyRelease(Node node) {
+>         boolean failed = true;
+>         try {
+>             int savedState = getState();// 获取同步状态state值
+>             // 执行release方法，尝试释放当前线程持有的共享状态，并唤醒下一个线程
+>             if (release(savedState)) {
+>                 failed = false;
+>                 return savedState;
+>             } else {
+>                 throw new IllegalMonitorStateException();
+>             }
+>         } finally {
+>             if (failed)
+>                 node.waitStatus = Node.CANCELLED;
+>         }
+>     }
+> }
+> ```
 > - 第四步：调用LockSupport.park(this)阻塞当前线程，一但消除被中断后者线程被唤醒转移到同步队列，则退出循环，继续下一步；
 > > 这里涉及到一个中断模式的问题。中断模式之前提到过，有两种：REINTERRUPT和THROW_IE，分别表示针对被中断的线程在退出等待队列时的处理方式，前者重新中断，后者则抛出异常。
 > > 此处interruptMode表示的就是中断模式的值，初始赋值为0，然后通过checkInterruptWhileWaiting(node)方法不断的进行校验，其源码如下：
@@ -250,7 +270,7 @@ ConditionObject中的公共方法其实就是对Condition接口中定义方法�
 > - 第五步：当前线程已经被转移到同步队列中，然后开始自旋以获取同步状态，待其获取到同步状态（锁）之后，返回该线程是否被中断，如果被中断，再根据其中断模式进行整理，如何整理呢，主要就是如果当前中断模式是THROW_IE模式，则保持不变，否则一律修改成REINTERRUPT模式，之后会再次进行一次同步队列节点清理。
 > - 第六步：最后针对不同的中断模式进行中断处理，如果是THROW_IN则抛出异常，如果是REINTERRUPT则再次进行中断。
 
-> awaitNanos(long nanosTimeout):
+> **awaitNanos(long)**:
 > ```java
 > public class ConditionObject implements Condition, java.io.Serializable {
 >     public final long awaitNanos(long nanosTimeout)
@@ -300,7 +320,7 @@ ConditionObject中的公共方法其实就是对Condition接口中定义方法�
 > 包括两个部分的内容，第一是开始的校验，如果设置的超时时间小于等于0，表示线程等待立即超时，然后立即转移到同步队列尾部，尝试获取锁；第二是如果设置的超时时间大于等于spinForTimeoutThreshold的值，则将当前线程阻塞指定的时间，这个时间会随着循环的次数不断的减小。
 
 另外的两个等待方法awaitUntil(Date deadline)和await(long time, TimeUnit unit)就不再赘述了，原理完全一致，有一个不同的是awaitUninterruptibly()方法：
-> awaitUninterruptibly()：
+> **awaitUninterruptibly()**：
 > ```java
 > public class ConditionObject implements Condition, java.io.Serializable {
 >     public final void awaitUninterruptibly() {
@@ -324,7 +344,7 @@ ConditionObject中的公共方法其实就是对Condition接口中定义方法�
 > 其实就是不响应中断的等待方法，从源码中可以看出，虽然不响应中断，但是仍然保存着中断标志。
 
 下面就来看看唤醒的方法：
-> signal()：
+> **signal()**：
 > ```java
 > public class ConditionObject implements Condition, java.io.Serializable {
 >     public final void signal() {
@@ -354,7 +374,7 @@ ConditionObject中的公共方法其实就是对Condition接口中定义方法�
 > - 第三步：如果等待队列只有一个节点（头节点），则将lastWaiter更新为null
 > - 第四步：尝试将线程节点从等待队列转移到同步队列，如果成功则结束循环，如果失败则再次判断firstWaiter首节点是否为null，如果不是null，则再次循环，否则结束循环
 
-> signalAll()：
+> **signalAll()**：
 ```java
 public class ConditionObject implements Condition, java.io.Serializable {
     public final void signalAll() {
@@ -473,6 +493,22 @@ public abstract class AbstractQueuedSynchronizer
 - acquireQueued(Node,int)：自旋获取锁，获取成功后返回等待过程中是否被中断过
 - selfInterrupt()：进行中断处理
 
+> 解析：首先尝试独享式获取同步状态，如果获取到了就结束，
+如果未获取到则将线程封装成为Node节点并添加到同步队列尾部，然后自旋以获取同步状态，
+一旦获取到同步状态，退出自旋，并返回当前线程在自旋期间是否被中断过，如果被中断过则再次自我中断，
+为什么需要再次自我中断呢，这只是为了保留中断现场，因为在自旋结束进行中断校验时使用的是Thread.interrupted()，
+该方法会导致中断状态被清除。
+
+tryAcquire方法是一个模板方法，需要在AQS的子类中实现，默认的实现只是抛出了一个异常
+```java
+public abstract class AbstractQueuedSynchronizer
+    extends AbstractOwnableSynchronizer
+    implements java.io.Serializable {
+    protected boolean tryAcquire(int arg) {
+        throw new UnsupportedOperationException();
+    }
+}
+```
 addWaiter方法源码：
 ```java
 public abstract class AbstractQueuedSynchronizer
@@ -517,7 +553,9 @@ public abstract class AbstractQueuedSynchronizer
     }
 }
 ```
-很明显上面的addWaiter方法中出现了添加新节点到同步队列的逻辑，而在之后的enq方法中再次出现，主要目的就是为了能在执行enq方法之前可以先进行一次尝试，看能否一次执行成功，若成功，则皆大欢喜，不必走下面的逻辑，若不成功，再走enq方法，来通过无限循环的方式强制执行成功。所以前面的逻辑可以看成是一次简单的enq操作。
+> 解析：很明显上面的addWaiter方法中出现了添加新节点到同步队列的逻辑，而在之后的enq方法中再次出现，
+主要目的就是为了能在执行enq方法之前可以先进行一次尝试，看能否一次执行成功，若成功，则皆大欢喜，
+不必走下面的逻辑，若不成功，再走enq方法，来通过无限循环的方式强制执行成功。所以前面的逻辑可以看成是一次简单的enq操作。
 
 acquireQueued方法源码：
 ```java
@@ -525,18 +563,19 @@ public abstract class AbstractQueuedSynchronizer
     extends AbstractOwnableSynchronizer
     implements java.io.Serializable {
     final boolean acquireQueued(final Node node, int arg) {
-        boolean failed = true;
+        boolean failed = true;// 默认失败
         try {
             boolean interrupted = false;// 中断标记
-            for (;;) {
+            for (;;) {// 无限循环以自旋
                 final Node p = node.predecessor();// 获取前置节点
-                // 如果前节点是头节点，并且当前线程获取同步状态成功，则将
+                // 如果前节点是头节点，并且当前线程获取同步状态成功，则将当前节点置为头节点
                 if (p == head && tryAcquire(arg)) {
                     setHead(node);
-                    p.next = null; // help GC
-                    failed = false;
+                    p.next = null; // help GC，这里去除以前的节点对当前节点的引用，当前节点对象不再被使用后可以被GC清理
+                    failed = false;// 表示成功
                     return interrupted;
                 }
+                // 如果前置节点不是头节点，或者当前节点线程未获取到同步状态，则将尝试将前置节点状态更新为SIGNAL，并阻塞当前线程
                 if (shouldParkAfterFailedAcquire(p, node) &&
                     parkAndCheckInterrupt())
                     interrupted = true;
@@ -548,10 +587,508 @@ public abstract class AbstractQueuedSynchronizer
     }
 }
 ```
+> 解析：以无限循环的方法自旋，每次循环都尝试独享式获取同步状态，如果获取到了同步状态，
+那么将当前节点置为头节点；如果前置节点不是头节点或者未获取到同步状态则尝试将前置节点的状态更新为SIGNAL，并阻塞当前线程（park），
+这种情况下，当前线程需要被唤醒才能继续执行，当被唤醒之后可以再次循环，尝试获取同步状态，如果不成功，将会再次阻塞，等待再次被唤醒。
 
+AbstractQueuedSynchronizer方法源码：
+```java
+public abstract class AbstractQueuedSynchronizer
+    extends AbstractOwnableSynchronizer
+    implements java.io.Serializable {
+    private static boolean shouldParkAfterFailedAcquire(Node pred, Node node) {
+        int ws = pred.waitStatus;// 获取前置节点的状态
+        if (ws == Node.SIGNAL)
+            // 表示后置线程节点（当前节点需要被唤醒）
+            return true;
+        if (ws > 0) {
+            // 表示前置节点线程被取消，那么清理被取消的线程节点
+            do {
+                node.prev = pred = pred.prev;
+            } while (pred.waitStatus > 0);
+            pred.next = node;
+        } else {
+            /*
+             * waitStatus must be 0 or PROPAGATE.  Indicate that we
+             * need a signal, but don't park yet.  Caller will need to
+             * retry to make sure it cannot acquire before parking.
+             */
+            // 尝试将前置节点的状态置为SIGNAL，只有置为SIGNAL之后才能返回true.
+            compareAndSetWaitStatus(pred, ws, Node.SIGNAL);
+        }
+        return false;
+    }
+}
+```
+> 解析：这个方法主要目的就是为了将前置节点状态置为SIGNAL，这个状态意思是它后面的那个节点被阻塞了，
+需要被唤醒，可见这个状态就是一个标记，标记着后面节点需要被唤醒。
 
+parkAndCheckInterrupt方法源码：
+```java
+public abstract class AbstractQueuedSynchronizer
+    extends AbstractOwnableSynchronizer
+    implements java.io.Serializable {
+    private final boolean parkAndCheckInterrupt() {
+        LockSupport.park(this);// 阻塞当前线程
+        return Thread.interrupted();
+    }
+}
+```
+> 解析：一旦线程执行到这一步，那么当前线程就会阻塞，后面的return暂时就不会执行。只有在被唤醒之后才能接着返回中断校验的结果。
 
+> 总结：acquire方法首先尝试独享式获取同步状态（tryAcquire），获取失败的情况下需要将当前线程封装成为一个Node节点，
+然后首先尝试将其设置为同步队列的为节点，如果失败，则自旋直到成功为止，然后进行自旋判断当前节点是否第二节点，如果是，
+则尝试获取同步状态，如果成功，将当前节点置为头节点；否则如果当前节点不是第二节点，或者获取同步状态失败，
+则将前置节点状态置为SIGNAL，然后阻塞(park)当前线程，等待被唤醒，唤醒之后会重复自旋，判断节点是否第二节点和尝试获取同步状态，
+如果还不成功，那么就再次阻塞...
+#### acquireInterruptibly(int)
+该方法表示独享式获取同步状态，响应中断，源码如下：
+```java
+public abstract class AbstractQueuedSynchronizer
+    extends AbstractOwnableSynchronizer
+    implements java.io.Serializable {
+    public final void acquireInterruptibly(int arg)
+            throws InterruptedException {
+        // 中断校验，会清除中断状态
+        if (Thread.interrupted())
+            throw new InterruptedException();
+        // 尝试独享式获取同步状态，如果失败则尝试中断的获取。
+        if (!tryAcquire(arg))
+            doAcquireInterruptibly(arg);
+    }
+    // 中断的获取同步状态
+    private void doAcquireInterruptibly(int arg)
+        throws InterruptedException {
+        // 首先将当前线程封装成为Node节点，并保存到同步队列尾部
+        final Node node = addWaiter(Node.EXCLUSIVE);
+        boolean failed = true;
+        try {
+            // 自旋，逻辑桶acquire
+            for (;;) {
+                final Node p = node.predecessor();
+                if (p == head && tryAcquire(arg)) {
+                    setHead(node);
+                    p.next = null; // help GC
+                    failed = false;
+                    return;
+                }
+                if (shouldParkAfterFailedAcquire(p, node) &&
+                    parkAndCheckInterrupt())
+                    throw new InterruptedException();
+            }
+        } finally {
+            if (failed)
+                cancelAcquire(node);
+        }
+    }
+}
+```
+> 解析：一开始就进行中断校验，如果未被中断则尝试独享式获取同步状态，获取失败后则封装线程为Node节点并保存到同步队列，然后自旋，逻辑与acquire种的acquireQueued方法逻辑一致，不再赘述。
+#### tryAcquireNanos(int, long)
+该方法表示独享式获取同步状态，响应中断，响应超时，源码如下：
+```java
+public abstract class AbstractQueuedSynchronizer
+    extends AbstractOwnableSynchronizer
+    implements java.io.Serializable {
+    public final boolean tryAcquireNanos(int arg, long nanosTimeout)
+            throws InterruptedException {
+        // 首先响应中断，进行中断校验，若被中断，抛出异常
+        if (Thread.interrupted())
+            throw new InterruptedException();
+        return tryAcquire(arg) ||
+            doAcquireNanos(arg, nanosTimeout);// 超时获取
+    }
+    // 超时获取
+    private boolean doAcquireNanos(int arg, long nanosTimeout)
+            throws InterruptedException {
+        // 如果超时时间小于等于0，则直接超时，返回false
+        if (nanosTimeout <= 0L)
+            return false;
+        final long deadline = System.nanoTime() + nanosTimeout;// 计算截止时间点
+        final Node node = addWaiter(Node.EXCLUSIVE);// 封装线程节点，并添加到同步队列
+        boolean failed = true;
+        try {
+            for (;;) {// 自旋
+                final Node p = node.predecessor();
+                if (p == head && tryAcquire(arg)) {
+                    setHead(node);
+                    p.next = null; // help GC
+                    failed = false;
+                    return true;
+                }
+                nanosTimeout = deadline - System.nanoTime();// 计算剩余超时时间
+                // 如果剩余超时时间小于等于0，这说明超时，返回false
+                if (nanosTimeout <= 0L)
+                    return false;
+                if (shouldParkAfterFailedAcquire(p, node) &&// 将前置节点状态置为SIGNAL
+                    nanosTimeout > spinForTimeoutThreshold)// 剩余超时时间大于快速自旋时限（1000纳秒）
+                    LockSupport.parkNanos(this, nanosTimeout);// 限时阻塞当前线程，超时时间为剩余超时时间
+                // 再次响应中断，进行中断校验，若被中断直接抛出异常
+                if (Thread.interrupted())
+                    throw new InterruptedException();
+            }
+        } finally {
+            if (failed)
+                cancelAcquire(node);
+        }
+    }
+}
+```
+> spinForTimeoutThreshold：这是系统内置的一个常量，设置为1000纳秒，这是一个很短的时间，如果要阻塞的剩余时间小于这个值，就没有必要再执行阻塞，直接进入快速自旋过程。
 
+> 解析：整体逻辑基本与前面的两种类似，不同之处在于增加了针对超时时间处理的逻辑。
+>
+> 与acquireInterruptibly类似，一开始就进行中断校验，若被中断则抛出异常，否则尝试独享式获取同步状态，
+> 获取成功，则返回true，如果获取失败，则将线程封装成Node节点保存到同步队列，然后计算截止时间点（当前时间+超时时间）,
+> 然后开始自旋，自旋的逻辑中前半部分与之前相同，只有在前置节点不是头节点或者获取同步状态失败的情况下逻辑发生了改变，
+> 先计算剩余超时时间nanosTimeout（截止时间点-当前时间）,然后将前置节点的状态置为SIGNAL，判断剩余超时时间是否大于
+> spinForTimeoutThreshold，如果大于则限时阻塞当前线程，否则快速自旋即可。
+#### acquireShared(int)
+该方法表示共享式获取同步状态，不响应中断，源码如下：
+```java
+public abstract class AbstractQueuedSynchronizer
+    extends AbstractOwnableSynchronizer
+    implements java.io.Serializable {
+    public final void acquireShared(int arg) {
+        if (tryAcquireShared(arg) < 0)
+            doAcquireShared(arg);
+    }
+}
+```
+> 解析：首先尝试共享式获取同步状态，如果获取失败（返回负值），则执行doAcquireShared方法。
+
+tryAcquireShared方法源码：
+```java
+public abstract class AbstractQueuedSynchronizer
+    extends AbstractOwnableSynchronizer
+    implements java.io.Serializable {
+    protected int tryAcquireShared(int arg) {
+        throw new UnsupportedOperationException();
+    }
+}
+```
+> 该方法是一个模板方法，需要子类来完善逻辑。但大致意义如下，如果获取失败返回负数（-1），如果是该同步状态被首次共享获取成功，返回0，非首次获取成功，则返回正数（1）
+
+doAcquireShared方法源码：
+```java
+public abstract class AbstractQueuedSynchronizer
+    extends AbstractOwnableSynchronizer
+    implements java.io.Serializable {
+    private void doAcquireShared(int arg) {
+        // 将线程封装成功节点，保存到同步队列
+        final Node node = addWaiter(Node.SHARED);
+        boolean failed = true;
+        try {
+            boolean interrupted = false;
+            for (;;) {// 自旋
+                final Node p = node.predecessor();// 获取前置节点
+                if (p == head) {
+                    // 如果前置节点为头节点
+                    int r = tryAcquireShared(arg);
+                    if (r >= 0) {
+                        // 如果成功获取到同步状态，则将当前节点置为头节点，并进行传播唤醒
+                        setHeadAndPropagate(node, r);
+                        p.next = null; // help GC
+                        if (interrupted)
+                            selfInterrupt();
+                        failed = false;
+                        return;
+                    }
+                }
+                // 如果前置节点非头节点或者获取同步状态失败，则将前置节点设置为SIGNAL，然后阻塞当前线程
+                if (shouldParkAfterFailedAcquire(p, node) &&
+                    parkAndCheckInterrupt())
+                    interrupted = true;
+            }
+        } finally {
+            if (failed)
+                cancelAcquire(node);
+        }
+    }
+    private void setHeadAndPropagate(Node node, int propagate) {
+        Node h = head; // 预存原始头节点
+        setHead(node);// 将当前节点置为头节点
+        // propagate可为0或1，0表示同步状态被首次获取，1表示被多次获取
+        // h为原始头节点
+        // head为新头节点
+        if (propagate > 0 || h == null || h.waitStatus < 0 ||
+            (h = head) == null || h.waitStatus < 0) {
+            Node s = node.next;// 获取下级节点s
+            // 如果后继节点不存在或者后继节点是共享式的，则唤醒后继节点
+            if (s == null || s.isShared())
+                doReleaseShared();// 唤醒后继节点
+        }
+    }
+}
+```
+> 解析：该方法的逻辑相对于acquireQueued只是稍有变动，大致意思是相同的。不同之处在于此处涉及到一个传播（Propagate）。
+> 所谓的传播，其实是在当前节点共享式获取到同步状态之后，检查其后置节点是否也是在等待共享式获取同步状态，若是，则将唤醒其后置节点。
+
+doReleaseShared源码：
+```java
+public abstract class AbstractQueuedSynchronizer
+    extends AbstractOwnableSynchronizer
+    implements java.io.Serializable {
+    private void doReleaseShared() {
+        for (;;) {// 自旋
+            Node h = head;// 获取头节点
+            if (h != null && h != tail) {// 如果队列中存在多个节点的话
+                int ws = h.waitStatus;// 头节点状态ws
+                // 如果头节点状态为SIGNAL，则将其
+                if (ws == Node.SIGNAL) {// 说明其后继节点线程被阻塞，需要唤醒
+                    if (!compareAndSetWaitStatus(h, Node.SIGNAL, 0))// 首先将头节点状态重置为0
+                        continue;// 如果重置头节点状态操作失败则重试
+                    unparkSuccessor(h);// 然后进行后继节点唤醒
+                }
+                // 如果头节点状态为0，则将其状态更新为PROPAGATE
+                else if (ws == 0 &&
+                         !compareAndSetWaitStatus(h, 0, Node.PROPAGATE))
+                    continue;// 头节点更新操作失败则重试
+            }
+            if (h == head)
+                break;// 头节点发生变化则退出自旋
+        }
+    }
+    private void unparkSuccessor(Node node) {
+        int ws = node.waitStatus;
+        if (ws < 0)
+            compareAndSetWaitStatus(node, ws, 0);
+        Node s = node.next;// 获取后继节点s
+        if (s == null || s.waitStatus > 0) {
+            // 如果s为null或者其状态为取消，则从后遍历队列节点，找到node节点之后的首个未被取消的节点t，赋给s
+            s = null;
+            for (Node t = tail; t != null && t != node; t = t.prev)
+                if (t.waitStatus <= 0)
+                    s = t;
+        }
+        if (s != null)
+            LockSupport.unpark(s.thread);// 执行s节点线程的唤醒操作
+    }
+}
+```
+> 解析：doReleaseShared方法被两处调用，一为此处，另一为releaseShared方法，这个是用来共享式释放同步状态的方法。
+> doReleaseShared方法的作用就是为了唤醒后继节点，主要逻辑如下：首先获取头节点的状态ws，如果ws是SIGNAL，
+> 表示后继节点需要被唤醒，然后自旋将头节点状态更新为0，并执行后继节点唤醒操作，这里要确保唤醒的是头节点之后首个
+> 未被取消的线程节点，唤醒之后，后继节点的线程开始继续执行，当前线程也继续执行；如果ws是0，则将头节点的状态更新为PROPAGATE，
+> 来确保同步状态可以顺利传播（因为如果ws为SIGNAL，会自动唤醒下一个节点，而0则不会，所有将其更新为PROPAGATE，表示共享式获取的传播）
+> 被唤醒的线程会重置头节点，一旦重置，当前线程在最后校验头节点那一步就会成功，然后执行break退出自旋。
+>
+> 一般来说这里唤醒的主要目的是为了唤醒一个共享式获取同步状态的线程节点，它会直接获取到同步状态；但也存在特殊情况，比如
+> 这个节点线程被取消了，导致唤醒了一个独享式获取的线程节点，那么在这个线程被唤醒后尝试独享式获取同步状态的时候会获取不到
+> （因为同步状态被共享式获取的线程持久，而且可能是多个）从而再次进入阻塞。
+> 
+> 其实唤醒的主要来源还是靠同步状态释放操作来发起的。
+#### acquireSharedInterruptibly(int)
+该方法表示共享式获取同步状态，响应中断，源码如下：
+```java
+public abstract class AbstractQueuedSynchronizer
+    extends AbstractOwnableSynchronizer
+    implements java.io.Serializable {
+    public final void acquireSharedInterruptibly(int arg)
+            throws InterruptedException {
+        // 首先响应中断
+        if (Thread.interrupted())
+            throw new InterruptedException();
+        // 尝试共享式获取同步状态，失败则执行doAcquireSharedInterruptibly方法
+        if (tryAcquireShared(arg) < 0)
+            doAcquireSharedInterruptibly(arg);
+    }
+    // 可中断的共享式获取同步状态
+    private void doAcquireSharedInterruptibly(int arg)
+        throws InterruptedException {
+        // 首先封装线程节点，保存到同步队列尾部
+        final Node node = addWaiter(Node.SHARED);
+        boolean failed = true;
+        try {
+            for (;;) {// 自旋
+                final Node p = node.predecessor();// 获取前置节点
+                if (p == head) {
+                    int r = tryAcquireShared(arg);
+                    if (r >= 0) {
+                        setHeadAndPropagate(node, r);
+                        p.next = null; // help GC
+                        failed = false;
+                        return;
+                    }
+                }
+                if (shouldParkAfterFailedAcquire(p, node) &&
+                    parkAndCheckInterrupt())
+                    // 如果发生了中断则抛出异常
+                    throw new InterruptedException();
+            }
+        } finally {
+            if (failed)
+                cancelAcquire(node);
+        }
+    }
+}
+```
+> 解析：这个方法与acquireShared几乎一致，仅仅是在处理中断的问题上有点区别，所以不再赘述。
+#### tryAcquireSharedNanos(int, long)
+该方法表示共享式获取同步状态，响应中断，响应超时，源码如下：
+```java
+public abstract class AbstractQueuedSynchronizer
+    extends AbstractOwnableSynchronizer
+    implements java.io.Serializable {
+    public final boolean tryAcquireSharedNanos(int arg, long nanosTimeout)
+            throws InterruptedException {
+        if (Thread.interrupted())
+            throw new InterruptedException();
+        return tryAcquireShared(arg) >= 0 ||
+            doAcquireSharedNanos(arg, nanosTimeout);
+    }
+    private boolean doAcquireSharedNanos(int arg, long nanosTimeout)
+            throws InterruptedException {
+        // 如果超时时间小于等于0,则直接超时，返回false
+        if (nanosTimeout <= 0L)
+            return false;
+        // 计算超时截止时间点（当前时间+超时时间）
+        final long deadline = System.nanoTime() + nanosTimeout;
+        // 封装节点并保存队列
+        final Node node = addWaiter(Node.SHARED);
+        boolean failed = true;
+        try {
+            for (;;) {// 自旋
+                final Node p = node.predecessor();
+                if (p == head) {
+                    int r = tryAcquireShared(arg);
+                    if (r >= 0) {
+                        setHeadAndPropagate(node, r);
+                        p.next = null; // help GC
+                        failed = false;
+                        return true;
+                    }
+                }
+                // 计算剩余的超时时间
+                nanosTimeout = deadline - System.nanoTime();
+                // 如果剩余超时时间小于等于0，直接超时，返回false
+                if (nanosTimeout <= 0L)
+                    return false;
+                // 将前置节点置为SIGNAL，然后校验剩余超时时间，如果不足spinForTimeoutThreshold，则进入快速自旋，否则执行阻塞
+                if (shouldParkAfterFailedAcquire(p, node) &&
+                    nanosTimeout > spinForTimeoutThreshold)
+                    LockSupport.parkNanos(this, nanosTimeout);
+                // 再次响应中断
+                if (Thread.interrupted())
+                    throw new InterruptedException();
+            }
+        } finally {
+            if (failed)
+                cancelAcquire(node);
+        }
+    }
+    }
+```
+> 解析：基本雷同，可以参考共享式获取同步状态的方法和独享式响应中断超时的获取方法。
+#### release(int)
+该方法表示独享式释放同步状态，源码如下：
+```java
+public abstract class AbstractQueuedSynchronizer
+    extends AbstractOwnableSynchronizer
+    implements java.io.Serializable {
+    public final boolean release(int arg) {
+        // 首先尝试独享式释放同步状态
+        if (tryRelease(arg)) {
+            Node h = head;// 头节点
+            // 头节点存在且状态不为0，则唤醒其后继节点
+            if (h != null && h.waitStatus != 0)
+                unparkSuccessor(h);
+            return true;
+        }
+        // 释放失败返回false
+        return false;
+    }
+}
+```
+> 解析：首先调用tryRelease来尝试独享式释放同步状态，如果成功，则根据头节点的状态来决定是否唤醒后继节点，
+> 头节点为0则不唤醒。唤醒操作通过调用unparkSuccessor方法来实现，具体逻辑之前已有描述，这里总结一下：
+> 其实就是唤醒头节点之后的首个未被取消的节点线程，这个线程可能是独享式的也可能是共享式的。
+
+tryRelease源码：
+```java
+public abstract class AbstractQueuedSynchronizer
+    extends AbstractOwnableSynchronizer
+    implements java.io.Serializable {
+    protected boolean tryRelease(int arg) {
+        throw new UnsupportedOperationException();
+    }
+}
+```
+> 解析：tryRelease方法是一个模板方法，同样需要子类来实现。
+#### releaseShared(int)
+该方法表示共享式释放同步状态，源码如下：
+```java
+public abstract class AbstractQueuedSynchronizer
+    extends AbstractOwnableSynchronizer
+    implements java.io.Serializable {
+    public final boolean releaseShared(int arg) {
+        // 尝试共享式释放同步状态，成功后唤醒后继节点
+        if (tryReleaseShared(arg)) {
+            doReleaseShared();
+            return true;
+        }
+        return false;
+    }
+}
+```
+> 解析：很简单，其中的doReleaseShared方法我们也了解了。
+
+tryReleaseShared源码：
+```java
+public abstract class AbstractQueuedSynchronizer
+    extends AbstractOwnableSynchronizer
+    implements java.io.Serializable {
+    protected boolean tryReleaseShared(int arg) {
+        throw new UnsupportedOperationException();
+    }
+}
+```
+> 解析：和前面的那几个模板方法一样，需要子类来实现。
+
+剩下的方法都是一些校验和监控的方法，并不涉及重点逻辑，不再赘述，下面做一个总结
+
+## 三、总结
+> 总结：
+>
+> 1. AQS同步器内部维护了一个底层为双向链表的同步队列，用于保存那些获取同步状态失败的线程。每个AQS同步器还可以关联多个Condition，其中每个Condition内部维护了一个底层为单向链表的等待队列，用于保存那些基于特定条件而陷入等待的线程。
+> 2. 内部类Node描述的是同步队列和等待队列中节点的类型。节点有两点需要注意，那就是节点的模式与状态
+>     - 节点模式：
+>         - EXCLUSIVE：独享式
+>         - SHARED：共享式
+>     - 节点状态：
+>         - 0：初始状态，该状态下不会唤醒后继节点
+>         - CANCELLED（1）：取消状态，节点线程被中断或超时
+>         - SIGNAL（-1）：唤醒状态，表示该节点的后继节点被阻塞，需要唤醒
+>         - CONDITION（-2）：表示当前节点位于等待队列中，在等待条件满足
+>         - PROPAGATE（-3）：表示共享式获取同步状态的传播
+> 3. 内部类ConditionObject是Condition的实现类，作为附着在同步器上的一个功能，可用可不用；它提供了一些方法来执行等待和唤醒操作：
+>     - 等待操作：
+>         - await()：响应中断
+>         - awaitNanos(long)：响应中断，响应超时
+>         - awaitUninterruptibly()：不响应中断，不响应超时
+>     - 唤醒操作：
+>         - signal()
+>         - signalAll()
+> 4. AQS同步器提供了多个方法从来辅助实现同步状态的获取与释放：
+>     - 独享式获取：
+>         - acquire(int)：不响应中断，不响应超时
+>         - acquireInterruptibly(int)：响应中断
+>         - tryAcquireNanos(int, long)：响应中断，响应超时
+>     - 独享式释放：
+>         - release(int)
+>     - 共享式获取：
+>         - acquireShared(int)：不响应中断，不响应超时
+>         - acquireSharedInterruptibly(int)：响应中断
+>         - tryAcquireSharedNanos(int, long)：响应中断，响应超时
+>     - 共享式释放：
+>         - releaseShared(int)
 
 参考：
+
+- [Java并发之AQS详解](https://www.cnblogs.com/waterystone/p/4920797.html)
+- [深入理解AbstractQueuedSynchronizer(AQS)](https://www.jianshu.com/p/cc308d82cc71)
+- [深入理解AbstractQueuedSynchronizer（三）](https://www.jianshu.com/p/52b07c88605e)
+- [详解Condition的await和signal等待/通知机制](https://www.jianshu.com/p/28387056eeb4)
 - [【死磕Java并发】-----J.U.C之AQS：同步状态的获取与释放](https://www.jianshu.com/p/3b5ea60c5ad9)
+- [【JUC】JDK1.8源码分析之AbstractQueuedSynchronizer（二）](https://www.cnblogs.com/leesf456/p/5350186.html)
+- [再谈AbstractQueuedSynchronizer2：共享模式与基于Condition的等待/通知机制实现](https://www.cnblogs.com/xrq730/p/7067904.html)
