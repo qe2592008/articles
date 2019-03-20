@@ -375,29 +375,29 @@ ConditionObject中的公共方法其实就是对Condition接口中定义方法�
 > - 第四步：尝试将线程节点从等待队列转移到同步队列，如果成功则结束循环，如果失败则再次判断firstWaiter首节点是否为null，如果不是null，则再次循环，否则结束循环
 
 > **signalAll()**：
-```java
-public class ConditionObject implements Condition, java.io.Serializable {
-    public final void signalAll() {
-        // 1-校验当前线程时候独享式持有共享锁，如果不持有则抛出异常
-        if (!isHeldExclusively())
-            throw new IllegalMonitorStateException();
-        Node first = firstWaiter;
-        // 2-如果队列不为空，则执行节点唤醒操作
-        if (first != null)
-            doSignalAll(first);
-    }
-    private void doSignalAll(Node first) {
-        lastWaiter = firstWaiter = null;// 要唤醒所有线程节点，那么等待队列就是被清空，那么就将这两个指针置为null
-        // 3-针对等待队列中的节点一个一个进行唤醒操作
-        do {
-            Node next = first.nextWaiter;// 保存二节点
-            first.nextWaiter = null;
-            transferForSignal(first);// 将首节点转移到同步队列
-            first = next;// 重置首节点，将二节点作为新的首节点
-        } while (first != null);
-    }
-}
-```
+> ```java
+> public class ConditionObject implements Condition, java.io.Serializable {
+>     public final void signalAll() {
+>         // 1-校验当前线程时候独享式持有共享锁，如果不持有则抛出异常
+>         if (!isHeldExclusively())
+>             throw new IllegalMonitorStateException();
+>         Node first = firstWaiter;
+>         // 2-如果队列不为空，则执行节点唤醒操作
+>         if (first != null)
+>             doSignalAll(first);
+>     }
+>     private void doSignalAll(Node first) {
+>         lastWaiter = firstWaiter = null;// 要唤醒所有线程节点，那么等待队列就是被清空，那么就将这两个指针置为null
+>         // 3-针对等待队列中的节点一个一个进行唤醒操作
+>         do {
+>             Node next = first.nextWaiter;// 保存二节点
+>             first.nextWaiter = null;
+>             transferForSignal(first);// 将首节点转移到同步队列
+>             first = next;// 重置首节点，将二节点作为新的首节点
+>         } while (first != null);
+>     }
+> }
+> ```
 ### 2.3 静态内容解析
 ```java
 public abstract class AbstractQueuedSynchronizer

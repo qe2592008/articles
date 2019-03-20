@@ -13,7 +13,7 @@ LinkedHashMap是基于链表和HashMap实现的有序Map。他可以有两种排
 
 插入顺序就是按照元素插入（存储put）Map的顺序来排序。
 
-因为HashMap是不是线程安全的集合，所以LinkedHashMap同样不是线程安全的集合。
+因为HashMap属于非线程安全的集合，所以LinkedHashMap同样是非线程安全的集合。
 ## 二、结构解析
 ### 2.1 继承体系
 ```java

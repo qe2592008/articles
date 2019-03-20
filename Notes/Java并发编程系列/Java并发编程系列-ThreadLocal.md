@@ -13,3 +13,11 @@ public class Thread implements Runnable {
 它的操作需要靠ThreadLocal中的get和set方法来实现。
 
 简单来看，那就是将ThreadLocal提供了一种将
+
+## 二、使用
+
+## 三、原理
+
+## 四、问题
+
+## 五、总结
