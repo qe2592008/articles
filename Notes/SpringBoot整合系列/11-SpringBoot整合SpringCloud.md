@@ -597,7 +597,7 @@ public class EurekaInvokeFallbackProvider implements FallbackProvider {
 ```
 ### 在zuul服务器整合所有微服务的swagger
 #### 第一步：为每个微服务和zuul服务器整合swagger2
-参照[《SpringBoot整合Swagger2》](/Notes/SpringBoot整合系列/1-SpringBoot整合Swagger2.md)
+参照[《SpringBoot整合Swagger2》](/Notes/SpringBoot整合系列/1-Springboot整合Swagger2.md)
 #### 第二步：修改zuul服务器的Swagger2Config配置类
 ```java
 @Configuration
